@@ -1,0 +1,6 @@
+@echo off
+echo Creando entorno virtual...
+python -m venv venv
+echo Instalando librerias necesarias...
+.\venv\Scripts\pip install -r requirements.txt
+pause

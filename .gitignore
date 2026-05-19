@@ -1,0 +1,13 @@
+#Modulos de backend a ignorar
+backend/node_modules
+backend/package-lock.json
+backend/.env
+
+#Modulos de fronten a ignorar
+frontend/node_modules
+frontend/package-lock.json
+frontend/.env
+
+#Modulos a ignorar de ia
+ia/chroma_db
+ia/.env
