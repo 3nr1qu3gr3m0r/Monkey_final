@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Routes, Route, useNavigate, useLocation } from 'react-router-dom';
+import { Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import { Box, Typography, Button } from '@mui/material';
 import Registro_Usuario from './components/Registro_Usuario';
 import LoginForm from './components/LoginForm';
@@ -32,6 +32,26 @@ class ErrorBoundary extends React.Component {
   }
 }
 
+const ProtectedRoute = ({ isAuthenticated, redirectTo = '/login', children }) => {
+  return isAuthenticated ? children : <Navigate to={redirectTo} replace />;
+};
+
+const parseJwtPayload = (token) => {
+  try {
+    const [_, payload] = token.split('.');
+    const base64 = payload.replace(/-/g, '+').replace(/_/g, '/');
+    const jsonPayload = decodeURIComponent(atob(base64).split('').map((c) => `%${('00' + c.charCodeAt(0).toString(16)).slice(-2)}`).join(''));
+    return JSON.parse(jsonPayload);
+  } catch {
+    return null;
+  }
+};
+
+const isTokenValid = (token) => {
+  const payload = parseJwtPayload(token);
+  return Boolean(payload && payload.exp && payload.exp * 1000 > Date.now());
+};
+
 function App() {
   const { showAlert } = useAlert();
   const navigate = useNavigate();
@@ -40,7 +60,14 @@ function App() {
   // 👇 1. INICIALIZAR USUARIO DESDE LOCALSTORAGE
   const [user, setUser] = useState(() => {
     const usuarioGuardado = localStorage.getItem('monkeyUser');
-    return usuarioGuardado ? JSON.parse(usuarioGuardado) : null;
+    const token = localStorage.getItem('token');
+    if (usuarioGuardado && token && isTokenValid(token)) {
+      return JSON.parse(usuarioGuardado);
+    }
+
+    localStorage.removeItem('token');
+    localStorage.removeItem('monkeyUser');
+    return null;
   });
 
   // Inicializar Carrito desde LocalStorage (Para Invitados)
@@ -52,10 +79,18 @@ function App() {
   // 👇 2. RECUPERAR TOKEN PARA AXIOS AL CARGAR LA APP
   useEffect(() => {
     const token = localStorage.getItem('token');
-    if (token) {
+    if (token && isTokenValid(token)) {
       apiClient.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+    } else {
+      localStorage.removeItem('token');
+      localStorage.removeItem('monkeyUser');
+      delete apiClient.defaults.headers.common['Authorization'];
+      if (user) setUser(null);
     }
-  }, []);
+  }, [user]);
+
+  // Validar si el usuario es real: debe existir user y token válido
+  const isAuthenticated = Boolean(user && localStorage.getItem('token') && isTokenValid(localStorage.getItem('token')));
 
   // Guardar Carrito en LocalStorage cada vez que cambie (Backup para invitados)
   useEffect(() => {
@@ -268,14 +303,19 @@ function App() {
     }
   };
 
-  const handleLogout = () => {
-    localStorage.removeItem('token'); 
-    localStorage.removeItem('monkeyUser');
-    delete apiClient.defaults.headers.common['Authorization'];
-    
-    setUser(null); 
-    setCarrito([]); 
-    navigate('/'); 
+  const handleLogout = async () => {
+    try {
+      await apiClient.post('/auth/logout');
+    } catch (error) {
+      console.warn('Error al cerrar sesión en el backend:', error?.response?.data || error.message);
+    } finally {
+      localStorage.removeItem('token');
+      localStorage.removeItem('monkeyUser');
+      delete apiClient.defaults.headers.common['Authorization'];
+      setUser(null);
+      setCarrito([]);
+      navigate('/');
+    }
   };
 
   return (
@@ -295,9 +335,9 @@ function App() {
           <Route path="/cart" element={<Carrito user={user} carrito={carrito} setCarrito={setCarrito} eliminarDelCarrito={eliminarDelCarrito} vaciarCarrito={vaciarCarrito} ajustarCantidad={ajustarCantidad} />} />
           <Route path="/checkout" element={<Checkout user={user} carrito={carrito} vaciarCarrito={vaciarCarrito} />} />
           <Route path="/payment-success" element={<SuccessPage user={user} carrito={carrito} vaciarCarrito={vaciarCarrito} />} />
-          <Route path="/admin" element={<AdminDashboard user={user} onLogout={handleLogout} />} />
-          <Route path="/dashboard-proveedor" element={<DashboardProveedor user={user} />} />
-          <Route path="/perfil" element={<Perfil user={user} onUpdate={updateUser} />} />
+          <Route path="/admin" element={<ProtectedRoute isAuthenticated={isAuthenticated}><AdminDashboard user={user} onLogout={handleLogout} /></ProtectedRoute>} />
+          <Route path="/dashboard-proveedor" element={<ProtectedRoute isAuthenticated={isAuthenticated}><DashboardProveedor user={user} onLogout={handleLogout} /></ProtectedRoute>} />
+          <Route path="/perfil" element={<ProtectedRoute isAuthenticated={isAuthenticated}><Perfil user={user} onUpdate={updateUser} /></ProtectedRoute>} />
           <Route path="/articulo/:id" element={<DetalleArticulo agregarAlCarrito={agregarAlCarrito} user={user} />} />
           <Route path="/chat-soporte" element={<ChatProveedor />} />
         </Routes>

@@ -1,5 +1,6 @@
 const userService  = require('../service/user.service');
 const authService  = require('../service/auth.service');
+const { revokeToken } = require('../middlewares/auth.middleware');
 
 const register = async (req, res) => {
     try {
@@ -54,4 +55,17 @@ const login = async (req, res) => {
     }
 };
 
-module.exports = { register, login };
+const logout = async (req, res) => {
+    try {
+        const token = req.token;
+        if (token) {
+            revokeToken(token);
+        }
+        res.status(200).json({ message: 'Sesión cerrada correctamente.' });
+    } catch (error) {
+        console.error("Error en logout:", error);
+        res.status(500).json({ message: "Error interno del servidor" });
+    }
+};
+
+module.exports = { register, login, logout };

@@ -78,7 +78,7 @@ function SidebarContent({ activeMenu, setActiveMenu, onItemClick }) {
 }
 
 // ─── Layout interno (ya tiene acceso al store) ────────────────────────────────
-function DashboardLayout({ user }) {
+function DashboardLayout({ user, onLogout }) {
   const navigate = useNavigate();
   // 🚀 EXTRAEMOS LAS ACCIONES DEL STORE GLOBAL
   const { actions } = useStore();
@@ -285,7 +285,7 @@ function DashboardLayout({ user }) {
               Ver Perfil
             </MenuItem>
             <Divider />
-            <MenuItem onClick={() => { handleCloseUser(); navigate('/login'); }} sx={{ color: 'error.main' }}>
+            <MenuItem onClick={() => { handleCloseUser(); onLogout?.(); }} sx={{ color: 'error.main' }}>
               <ListItemIcon><LogoutIcon fontSize="small" color="error" /></ListItemIcon>
               Cerrar Sesión
             </MenuItem>
@@ -337,10 +337,19 @@ function DashboardLayout({ user }) {
   );
 }
 
-export default function DashboardProveedor({ user }) {
+export default function DashboardProveedor({ user, onLogout }) {
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    if (!user || !token) {
+      navigate('/login');
+    }
+  }, [user, navigate]);
+
   return (
     <StoreProvider>
-      <DashboardLayout user={user} />
+      <DashboardLayout user={user} onLogout={onLogout} />
     </StoreProvider>
   );
 }
