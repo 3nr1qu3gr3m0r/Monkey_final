@@ -96,7 +96,8 @@ app.get('/', (req, res) => {
 });
 
 // Inicio del servidor
-app.listen(PORT, () => {
+// Agregamos '0.0.0.0' como segundo parámetro
+app.listen(PORT, '0.0.0.0', () => {
   console.log(`Servidor corriendo en el puerto ${PORT}`);
   console.log(`Conexión Frontend permitida desde: ${process.env.FRONTEND_URL || 'http://localhost:5173'}`);
 });
