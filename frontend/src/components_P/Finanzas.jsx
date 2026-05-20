@@ -34,6 +34,8 @@ export default function Finanzas() {
   const ingresosTotales = pedidosActivos.reduce((sum, p) => sum + Number(p.monto), 0);
   const ticketPromedio = pedidosActivos.length > 0 ? ingresosTotales / pedidosActivos.length : 0;
 
+  
+
   const kpis = [
     { title: 'INGRESOS TOTALES (HISTÓRICO)', value: `$${ingresosTotales.toLocaleString('es-MX')}`, color: '#1D4ED8' },
     { title: 'PEDIDOS / RESERVAS', value: pedidosActivos.length.toString(), color: '#059669' },

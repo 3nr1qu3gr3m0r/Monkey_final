@@ -164,6 +164,8 @@ export default function Estatus() {
   const pedidos = state.pedidosActivos || []; 
   const [tabActiva, setTabActiva] = useState('todos');
 
+  
+
   // NUEVO: Vamos al backend a buscar los pedidos reales al entrar a la pestaña
   useEffect(() => {
     const fetchPedidos = async () => {

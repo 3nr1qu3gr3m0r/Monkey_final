@@ -17,6 +17,7 @@ import AssignmentIcon from '@mui/icons-material/Assignment';
 import MenuIcon from '@mui/icons-material/Menu';
 import { Tooltip } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
+import CloseIcon from '@mui/icons-material/Close';
 
 import logo from '../assets/logo2.png';
 import ProdServForm from './ProdServForm';
@@ -177,7 +178,7 @@ function DashboardLayout({ user }) {
         px: { xs: 1, md: 2, lg: 3 }, py: 1.2, backgroundColor: 'white',
         borderBottom: '1px solid #e5e7eb',
         position: 'sticky', top: 0, zIndex: 100,
-        minWidth: 0,
+        minWidth: 0, border: '1px solid', borderColor: 'primary.main',
       }}>
 
         {/* Botón hamburguesa — solo en móvil */}
@@ -194,6 +195,26 @@ function DashboardLayout({ user }) {
         >
           <img src={logo} alt="MonkeyMarket" style={{ width: 36, height: 36, objectFit: 'contain' }} />
           <Typography fontWeight={700} color="primary" fontSize={20}>MonkeyMarket</Typography>
+        </Box>
+
+        {/* Barra de búsqueda*/}
+        <Box sx={{
+          display: { xs: 'none', md: 'flex' }, alignItems: 'center', gap: 2,
+          backgroundColor: '#f5f4f4', borderRadius: 50,
+          px: 2, py: 0.8, flex: 1, maxWidth: 800, border: '2px solid', borderColor: 'primary.main', ml: 6,  
+        }}>
+          <SearchIcon sx={{ color: 'text.secondary', fontSize: 18 }} />
+          <InputBase
+            value={busqueda}
+            onChange={e => setBusqueda(e.target.value)}
+            placeholder="Buscar en Mi Negocio..."
+            sx={{ flex: 1, fontSize: 14 }}
+          />
+          {busqueda && (
+            <IconButton size="small" onClick={() => setBusqueda('')} sx={{ p: 0.2 }}>
+              <CloseIcon fontSize="small" />
+            </IconButton>
+          )}
         </Box>
 
         <Box sx={{ ml: 'auto', display: 'flex', alignItems: 'center', gap: 1 }}>
@@ -304,12 +325,12 @@ function DashboardLayout({ user }) {
 
         {/* Contenido — cada sección lee del mismo store */}
         <Box sx={{ flex: 1, p: { xs: 2, md: 3 }, overflowY: 'auto', height: 'calc(100vh - 52px)' }}>
-          {activeMenu === 'Inicio/Resumen'             && <InicioResumen onNavigate={setActiveMenu} />}
-          {activeMenu === 'Mis Servicios y Productos'  && <MisServicios busqueda={busqueda} user={user} />}
-          {activeMenu === 'Estatus'                    && <Estatus />}
-          {activeMenu === 'Finanzas'                   && <Finanzas />}
-          {activeMenu === 'Reputación (IA)'            && <Reputacion />}
-          {activeMenu === 'Reportes'                   && <Reportes />}
+          {activeMenu === 'Inicio/Resumen'            && <InicioResumen onNavigate={setActiveMenu} busqueda={busqueda} />}
+          {activeMenu === 'Mis Servicios y Productos' && <MisServicios busqueda={busqueda} user={user} />}
+          {activeMenu === 'Estatus'                   && <Estatus busqueda={busqueda} />}
+          {activeMenu === 'Finanzas'                  && <Finanzas busqueda={busqueda} />}
+          {activeMenu === 'Reputación (IA)'           && <Reputacion busqueda={busqueda} />}
+          {activeMenu === 'Reportes'                  && <Reportes busqueda={busqueda} />}
         </Box>
       </Box>
     </Box>

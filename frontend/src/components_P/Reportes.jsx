@@ -261,6 +261,8 @@ export default function Reportes() {
   const [reportes, setReportes] = useState(REPORTES_INICIALES);
   const [tabActiva, setTabActiva] = useState('todos');
 
+  
+
   const handleResponder = (id, respuesta) => {
     setReportes(prev => prev.map(r =>
       r.id === id

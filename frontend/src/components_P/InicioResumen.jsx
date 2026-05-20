@@ -17,7 +17,7 @@ export default function InicioResumen({ onNavigate }) {
   return (
     <Box sx={{ pb: 4 }}>
       <Box sx={{ mb: { xs: 3, md: 4 } }}>
-        <Typography variant="h5" fontWeight={800} color="#111827">
+        <Typography variant="h5" fontWeight={700} color="#111827">
           ¡Bienvenido de vuelta! 👋
         </Typography>
         <Typography variant="body1" color="text.secondary">
@@ -67,7 +67,7 @@ export default function InicioResumen({ onNavigate }) {
       {/* ÚLTIMOS PEDIDOS PENDIENTES */}
       <Paper sx={{ p: { xs: 2, md: 3 }, borderRadius: 4, border: '1px solid #e5e7eb', boxShadow: 'none' }}>
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-          <Typography variant="h6" fontWeight={800} sx={{ fontSize: { xs: '1.1rem', md: '1.25rem' } }}>
+          <Typography variant="h6" fontWeight={700} sx={{ fontSize: { xs: '1.1rem', md: '1.25rem' } }}>
             Tareas por hacer (Órdenes Activas)
           </Typography>
           <Button size="small" onClick={() => onNavigate('Estatus')} sx={{ fontWeight: 600 }}>Ver todas</Button>

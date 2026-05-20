@@ -28,7 +28,7 @@ const searchRoutes = require('./routes/search.routes');
 const walletRoutes = require('./routes/wallet.routes');
 
 const app = express();
-const PORT = process.env.PORT || 3000;
+const PORT = 3000;
 
 // Configuramos CORS con las variables de entorno
 const corsOptions = {

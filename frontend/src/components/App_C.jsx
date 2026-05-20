@@ -23,7 +23,7 @@ import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 import NewReleasesIcon from '@mui/icons-material/NewReleases';
 import { useNavigate } from 'react-router-dom';
-import api from '../config/api';
+import apiClient from '../config/api';
 
 const categorias = [
   'Mobiliario', 'Audio e Iluminación', 'Decoración', 'Alimentos y Bebidas',
@@ -89,9 +89,11 @@ function AppC({ user, carrito, setCarrito, agregarAlCarrito, ajustarCantidad }) 
       try {
         setCargando(true);
         const [resProds, resSvcs] = await Promise.all([
-          api.get('/products').catch(() => ({ data: [] })),
-          api.get('/services').catch(() => ({ data: [] })),
+          apiClient.get('/products').catch(() => ({ data: [] })),
+          apiClient.get('/services').catch(() => ({ data: [] })),
         ]);
+        console.log('resProds.data:', resProds.data); // ← agrega esto
+        console.log('resSvcs.data:', resSvcs.data);   // ← y esto
 
         // 🚀 EXTRACTOR BLINDADO PARA PRODUCTOS
         const productosNorm = resProds.data.map(p => ({
@@ -177,7 +179,7 @@ function AppC({ user, carrito, setCarrito, agregarAlCarrito, ajustarCantidad }) 
         content: msg.text
       }));
 
-      const response = await api.post('/ai/analyze', {
+      const response = await apiClient.post('/ai/analyze', {
         message: userText,
         history: historial
       });
@@ -211,9 +213,8 @@ function AppC({ user, carrito, setCarrito, agregarAlCarrito, ajustarCantidad }) 
     }
     setCargandoBusqueda(true); 
     try {
-        const response = await fetch(`http://localhost:3000/api/search?q=${termino}`);
-        const data = await response.json();
-        setResultados(data);
+        const response = await apiClient.get(`/api/search?q=${termino}`);
+        setResultados(response.data);
     } catch (error) {
         console.error("Error al buscar:", error);
     } finally {
