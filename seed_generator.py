@@ -207,11 +207,11 @@ def main():
         for cat in CATEGORIAS_SQL:
             f.write(f"INSERT INTO categorias (id, nombre, descripcion, activa) VALUES ({cat[0]}, '{escape_sql(cat[1])}', '{escape_sql(cat[2])}', 1);\n")
             
-        f.write("INSERT INTO usuarios (id, rol, nombre, correo, contrasena_hash) VALUES (21, 'admin', 'Super Admin', 'admin@monkey.com', '$2b$10$Ew7PRDD6EJ1gCFL6NuEZo.pHGElcw4VLr7hv87syw1QVTw4KyYpwm');\n")
-        f.write("INSERT INTO usuarios (id, rol, nombre, correo, contrasena_hash) VALUES (22, 'cliente', 'Cliente Demo', 'cliente@monkey.com', '$2b$10$Ew7PRDD6EJ1gCFL6NuEZo.pHGElcw4VLr7hv87syw1QVTw4KyYpwm');\n")
+        f.write("INSERT INTO usuarios (id, rol, nombre, correo, contrasena_hash) VALUES (21, 'admin', 'Super Admin', 'admin@gmail.com', '$2b$10$Ew7PRDD6EJ1gCFL6NuEZo.pHGElcw4VLr7hv87syw1QVTw4KyYpwm');\n")
+        f.write("INSERT INTO usuarios (id, rol, nombre, correo, contrasena_hash) VALUES (22, 'cliente', 'Cliente Demo', 'cliente@gmail.com', '$2b$10$Ew7PRDD6EJ1gCFL6NuEZo.pHGElcw4VLr7hv87syw1QVTw4KyYpwm');\n")
         
         for prov_id, prov_data in PROVEEDORES_CONFIG.items():
-            correo = f"prov{prov_id}@monkey.com"
+            correo = f"prov{prov_id}@gmail.com"
             f.write(f"INSERT INTO usuarios (id, rol, nombre, correo, contrasena_hash) VALUES ({prov_id}, 'proveedor', '{escape_sql(prov_data['nombre'])}', '{correo}', '$2b$10$Ew7PRDD6EJ1gCFL6NuEZo.pHGElcw4VLr7hv87syw1QVTw4KyYpwm');\n")
             f.write(f"INSERT INTO billeteras (proveedor_id, saldo_actual) VALUES ({prov_id}, 0.00);\n")
         
