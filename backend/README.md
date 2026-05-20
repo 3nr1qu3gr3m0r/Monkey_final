@@ -10,8 +10,6 @@ Asegúrate de tener instalado lo siguiente en tu entorno local antes de iniciar:
 
 ---
 
-
-
 ## ⚙️ 1. Configuración del Backend Core (Node.js)
 
 1. Abre una terminal y navega a la carpeta del backend:
