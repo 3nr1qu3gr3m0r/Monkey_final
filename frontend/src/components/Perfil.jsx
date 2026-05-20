@@ -217,7 +217,7 @@ function Perfil({ user, onUpdate }) {
                     <List sx={{ bgcolor: '#f8fafc', borderRadius: 4, p: 2 }}>
                         <ListItem>
                             <ListItemIcon><EmailIcon color="primary"/></ListItemIcon>
-                            <ListItemText primary="Correo Electrónico" secondary={user?.correo || "No disponible"} />
+                            <ListItemText primary="Correo Electrónico" secondary={user?.email || user?.correo || "No disponible"} />
                         </ListItem>
                         <Divider variant="inset" component="li" />
                         <ListItem>
