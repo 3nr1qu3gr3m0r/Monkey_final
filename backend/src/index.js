@@ -31,11 +31,40 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 // Configuramos CORS con las variables de entorno
+// Filtramos y limpiamos el origen
+const allowedOrigins = [
+  'https://frontend-production-6ca5.up.railway.app',
+  'https://frontend-production-6ca5.up.railway.app/', // Con barra por si acaso
+  'http://localhost:5173',
+  'http://127.0.0.1:5173'
+];
+
+// Si tienes la variable de entorno, la limpiamos y la agregamos también
+if (process.env.FRONTEND_URL) {
+  const cleanUrl = process.env.FRONTEND_URL.replace(/\/$/, ""); // Quita la barra del final si existe
+  allowedOrigins.push(cleanUrl);
+  allowedOrigins.push(`${cleanUrl}/`);
+}
+
 const corsOptions = {
-  origin: process.env.FRONTEND_URL || 'http://localhost:5173', 
+  origin: function (origin, callback) {
+    // Permitir peticiones sin origen (como Postman o Server-to-Server)
+    if (!origin) return callback(null, true);
+    
+    if (allowedOrigins.indexOf(origin) !== -1) {
+      callback(null, true);
+    } else {
+      console.log(`[CORS Bloqueado]: Intento de acceso desde ${origin}`);
+      callback(new Error('No permitido por CORS'));
+    }
+  },
   methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
-  credentials: true, 
+  credentials: true,
+  optionsSuccessStatus: 200 // Alivia problemas con algunos navegadores antiguos
 };
+
+// Middlewares
+app.use(cors(corsOptions));
 
 // Middlewares
 app.use(cors(corsOptions));
