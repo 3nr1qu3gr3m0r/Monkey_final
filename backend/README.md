@@ -15,7 +15,7 @@ Asegúrate de tener instalado lo siguiente en tu entorno local antes de iniciar:
 1. Abre una terminal y navega a la carpeta del backend:
    ```bash
    cd backend
-   
+
 2. Instala las dependencias usando el package-lock.json
    npm ci
 3.Crea un archivo llamado .env en la raíz ede la carpeta backend y agrega las siguientes variables
