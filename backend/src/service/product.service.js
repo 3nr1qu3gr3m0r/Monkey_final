@@ -20,6 +20,8 @@ const obtenerTodos = async (proveedorId = null) => {
         LEFT JOIN valoraciones v ON dp.id = v.detalle_pedido_id
         ${whereClause}
         GROUP BY p.id
+        ORDER BY RAND()
+        LIMIT 100
     `;
     const [rows] = await db.query(query, params);
     return rows;

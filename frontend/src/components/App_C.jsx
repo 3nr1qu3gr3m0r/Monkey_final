@@ -25,6 +25,21 @@ import NewReleasesIcon from '@mui/icons-material/NewReleases';
 import { useNavigate } from 'react-router-dom';
 import apiClient from '../config/api';
 
+const imagenesPorCategoria = {
+  'Mobiliario': 'https://images.unsplash.com/photo-1555041469-a586c61ea9bc?w=400',
+  'Audio e Iluminación': 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=400',
+  'Decoración': 'https://images.unsplash.com/photo-1493809842364-78817add7ffb?w=400',
+  'Alimentos y Bebidas': 'https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=400',
+  'Fotografía y Video': 'https://images.unsplash.com/photo-1516035069371-29a1b244cc32?w=400',
+  'Entretenimiento': 'https://images.unsplash.com/photo-1501281668745-f7f57925c3b4?w=400',
+  'Recintos y Salones': 'https://images.unsplash.com/photo-1519167758481-83f550bb49b3?w=400',
+  'Personal y Staff': 'https://images.unsplash.com/photo-1521737711867-e3b97375f902?w=400',
+  'Repostería y Dulces': 'https://images.unsplash.com/photo-1486427944299-d1955d23e34d?w=400',
+  'Recuerdos y Souvenirs': 'https://images.unsplash.com/photo-1513519245088-0e12902e5a38?w=400',
+  'Transporte y Logística': 'https://images.unsplash.com/photo-1519003722824-194d4455a60c?w=400',
+  'Varios': 'https://images.unsplash.com/photo-1472851294608-062f824d29cc?w=400'
+};
+
 const categorias = [
   'Mobiliario', 'Audio e Iluminación', 'Decoración', 'Alimentos y Bebidas',
   'Fotografía y Video', 'Entretenimiento', 'Recintos y Salones', 'Personal y Staff',
@@ -488,14 +503,13 @@ function AppC({ user, carrito, setCarrito, agregarAlCarrito, ajustarCantidad }) 
 
 function ItemCardAppC({ p, abrirDetalles, cambiarCantidad, cantidades, handleAgregarAlCarrito }) {
   const [fotoIndex, setFotoIndex] = useState(0);
-  const fotosSeguras = Array.isArray(p.fotos) && p.fotos.length > 0 ? p.fotos : [`https://picsum.photos/seed/${p.id}/400/300`];
-  const nextFoto = (e) => { e.stopPropagation(); setFotoIndex((prev) => (prev === fotosSeguras.length - 1 ? 0 : prev + 1)); };
+  const fotosSeguras = Array.isArray(p.fotos) && p.fotos.length > 0 ? p.fotos : [imagenesPorCategoria[p.categoria] || imagenesPorCategoria['Varios']];  const nextFoto = (e) => { e.stopPropagation(); setFotoIndex((prev) => (prev === fotosSeguras.length - 1 ? 0 : prev + 1)); };
   const prevFoto = (e) => { e.stopPropagation(); setFotoIndex((prev) => (prev === 0 ? fotosSeguras.length - 1 : prev - 1)); };
 
   return (
     <Card onClick={() => abrirDetalles(p)} sx={{ borderRadius: 3, border: '1px solid #e5e7eb', boxShadow: '0 4px 10px rgba(0,0,0,0.03)', '&:hover': { boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1)', transform: 'translateY(-6px)' }, transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)', cursor: 'pointer', overflow: 'visible' }}>
       <Box sx={{ position: 'relative', '&:hover .carrusel-btn': { opacity: 1 } }}>
-        <CardMedia component="img" height="180" image={fotosSeguras[fotoIndex]} alt={p.nombre} sx={{ objectFit: 'cover', borderRadius: '12px 12px 0 0' }} />
+        <CardMedia component="img" height="180" image={fotosSeguras[fotoIndex] || imagenesPorCategoria[p.categoria] || imagenesPorCategoria['Varios']} alt={p.nombre} sx={{ objectFit: 'cover', borderRadius: '12px 12px 0 0' }} />
         {fotosSeguras.length > 1 && (
           <>
             <IconButton className="carrusel-btn" onClick={prevFoto} size="small" sx={{ position: 'absolute', top: '50%', left: 8, transform: 'translateY(-50%)', bgcolor: 'rgba(255,255,255,0.7)', opacity: 0, transition: '0.2s', '&:hover': { bgcolor: 'white' } }}><ChevronLeftIcon /></IconButton>
