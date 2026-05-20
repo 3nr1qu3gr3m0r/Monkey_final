@@ -17,6 +17,7 @@ const ESTADO_INICIAL = {
   saldoWallet: 0,
   devoluciones: [],
   pedidosActivos: [], // Aquí guardamos las ventas reales
+  reportes: [], // Aquí guardamos las quejas/disputas reales
 };
 
 // ─── Reducer ──────────────────────────────────────────────────────────────────
@@ -47,12 +48,13 @@ function reducer(state, action) {
     
     // 👇 ACCIONES PARA EL DASHBOARD Y ESTATUS
       case 'SET_DASHBOARD_DATA':
-        const { saldoWallet, totalRetiros, pedidos } = action.payload; // 🚀 Agregamos totalRetiros aquí
+        const { saldoWallet, totalRetiros, pedidos, reportes } = action.payload; // 🚀 Agregamos totalRetiros y reportes aquí
         return {
           ...state,
           saldoWallet: saldoWallet,
           totalRetiros: totalRetiros || 0, // 🚀 Lo guardamos en el estado global
           pedidosActivos: pedidos,
+          reportes: reportes || [], // 🚀 Guardamos reportes reales
           reservasHoy: pedidos.filter(p => p.tipo === 'servicio' && p.estatus !== 'entregado').length,
           pedidosPorEmpaquetar: pedidos.filter(p => p.tipo === 'producto' && p.estatus === 'pendiente').length
       };
@@ -88,6 +90,7 @@ export function StoreProvider({ children }) {
     updatePedidoEstatus: (id, estatus) => dispatch({ type: 'UPDATE_PEDIDO_ESTATUS', payload: { id, estatus } }),
     actualizarWallet:    (nuevoSaldo) => dispatch({ type: 'ACTUALIZAR_WALLET', payload: nuevoSaldo }),
     setPedidosActivos:   (pedidos) => dispatch({ type: 'SET_PEDIDOS_ACTIVOS', payload: pedidos }), // 🚀 AGREGADO AQUÍ
+    setDashboardData:    (payload) => dispatch({ type: 'SET_DASHBOARD_DATA', payload }),
   };
 
   // 👇 CARGAMOS LA BILLETERA Y LOS PEDIDOS AL INICIAR EL STORE

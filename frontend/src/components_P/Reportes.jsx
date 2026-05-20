@@ -1,4 +1,6 @@
 import { useState } from 'react';
+import { useStore } from './Store';
+import api from '../config/api';
 import {
   Box, Typography, Chip, Card, Avatar, Button,
   Tabs, Tab, Divider, TextField, Collapse, IconButton,
@@ -227,7 +229,7 @@ function ReporteCard({ reporte, onResponder, onMarcarResuelto }) {
                   <Button
                     size="small" variant="contained" color="secondary"
                     startIcon={<ChatBubbleOutlineIcon fontSize="small" />}
-                    onClick={() => navigate('/chat-proveedor', { state: { item: reporte } })}
+                    onClick={() => navigate('/chat-soporte', { state: { item: reporte } })}
                     sx={{ borderRadius: 50, px: 3, ml: 2, textTransform: 'none', fontWeight: 600, backgroundColor: '#FACC15', color: '#111' }}
                   >
                     Chat
@@ -258,23 +260,25 @@ function ReporteCard({ reporte, onResponder, onMarcarResuelto }) {
 
 // ─── Componente principal ─────────────────────────────────────────────────────
 export default function Reportes() {
-  const [reportes, setReportes] = useState(REPORTES_INICIALES);
+  const { state, actions } = useStore();
+  const reportes = state.reportes || [];
   const [tabActiva, setTabActiva] = useState('todos');
 
   
 
   const handleResponder = (id, respuesta) => {
-    setReportes(prev => prev.map(r =>
-      r.id === id
-        ? { ...r, respuesta, estatus: 'respondido', fechaRespuesta: 'Hoy' }
-        : r
-    ));
+    // La respuesta se maneja a través del chat de soporte
   };
 
-  const handleMarcarResuelto = (id) => {
-    setReportes(prev => prev.map(r =>
-      r.id === id ? { ...r, estatus: 'resuelto' } : r
-    ));
+  const handleMarcarResuelto = async (id) => {
+    try {
+      await api.post('/chat/resolucion/responder', { detalle_pedido_id: id, aceptada: true });
+      // Recargar datos globales del dashboard
+      const res = await api.get('/proveedor/dashboard');
+      actions.setDashboardData(res.data);
+    } catch (error) {
+      console.error("Error al marcar como resuelto:", error);
+    }
   };
 
   const conteos = {

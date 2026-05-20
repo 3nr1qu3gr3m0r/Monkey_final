@@ -24,7 +24,7 @@ function ChatProveedor() {
   
   // 🚀 SABER SI EL QUE MIRA LA PANTALLA ES EL PROVEEDOR O EL CLIENTE
   // (Ajusta esto según cómo guardes tu usuario logueado, ej. useContext)
-  const userString = localStorage.getItem('user');
+  const userString = localStorage.getItem('monkeyUser');
   const usuarioLogueado = userString ? JSON.parse(userString) : { rol: 'cliente' };
   const soyProveedor = usuarioLogueado.rol === 'proveedor';
   const soyAdmin = usuarioLogueado.rol === 'admin';

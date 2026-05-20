@@ -44,11 +44,53 @@ const getDashboard = async (proveedorId) => {
             monto: Number(v.precio_unitario_historico) * v.cantidad,
             estatus: (v.estado_operativo || 'pendiente').toLowerCase(), 
             avatar: v.cliente_nombre ? v.cliente_nombre.charAt(0).toUpperCase() : 'U',
-            notas: esProducto ? `Cantidad: ${v.cantidad}` : 'Reserva de servicio'
+            notes: esProducto ? `Cantidad: ${v.cantidad}` : 'Reserva de servicio'
         };
     });
 
-    return { saldoWallet, totalRetiros, pedidos: pedidosFormateados };
+    // 🚀 OBTENER REPORTES/DISPUTAS REALES
+    const [reportesDb] = await db.query(
+        `SELECT disp.id AS disputa_id, disp.detalle_pedido_id, disp.motivo_queja, disp.estado AS disputa_estado,
+                disp.fecha_creacion, u.nombre AS cliente_nombre,
+                p.titulo AS prod_nombre, s.titulo AS serv_nombre
+         FROM disputas disp
+         JOIN detalles_pedido dp ON disp.detalle_pedido_id = dp.id
+         JOIN pedidos ped ON dp.pedido_id = ped.id
+         JOIN usuarios u ON ped.cliente_id = u.id
+         LEFT JOIN productos p ON dp.producto_id = p.id
+         LEFT JOIN servicios s ON dp.servicio_id = s.id
+         WHERE (p.proveedor_id = ? OR s.proveedor_id = ?)
+         ORDER BY disp.fecha_creacion DESC`,
+        [proveedorId, proveedorId]
+    );
+
+    const reportesFormateados = reportesDb.map(r => {
+        const esProducto = r.prod_nombre != null;
+        
+        let estatus = 'pendiente';
+        if (r.disputa_estado === 'esperando_confirmacion_cliente') estatus = 'respondido';
+        if (r.disputa_estado === 'resuelto') estatus = 'resuelto';
+        if (r.disputa_estado === 'escalado_a_admin') estatus = 'respondido';
+
+        const fechaSegura = typeof r.fecha_creacion === 'string' ? r.fecha_creacion.replace(' ', 'T') : r.fecha_creacion;
+
+        return {
+            id: r.detalle_pedido_id, // 🔑 ID real del detalle del pedido para usar en Chat
+            disputaId: r.disputa_id,
+            tipoProd: esProducto ? 'producto' : 'servicio',
+            articulo: esProducto ? r.prod_nombre : r.serv_nombre,
+            nombre: esProducto ? r.prod_nombre : r.serv_nombre, // Para ChatProveedor
+            cliente: r.cliente_nombre,
+            avatar: r.cliente_nombre ? r.cliente_nombre.charAt(0).toUpperCase() : 'U',
+            fecha: new Date(fechaSegura).toLocaleDateString('es-MX', { day: '2-digit', month: 'short', year: 'numeric' }),
+            estatus: estatus,
+            mensaje: r.motivo_queja,
+            complaint: r.disputa_estado, // Para ChatProveedor
+            respuesta: r.disputa_estado === 'esperando_confirmacion_cliente' ? 'Propuesta de solución enviada al cliente.' : null
+        };
+    });
+
+    return { saldoWallet, totalRetiros, pedidos: pedidosFormateados, reportes: reportesFormateados };
 };
 
 const updateStatus = async (detalleId, estatus) => {
