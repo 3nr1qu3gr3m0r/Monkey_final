@@ -9,7 +9,7 @@
   "license": "ISC",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "node app.js",
+    "start": "node index.js",
     "dev:client": "vite",
     "dev:server": "nodemon src/index.js",
     "build": "vite build",
