@@ -1,68 +1,35 @@
 import React from 'react';
 import {
   Box, Typography, Paper, Grid, Chip, Divider,
-  LinearProgress, Avatar, Tooltip
+  LinearProgress, Skeleton, Alert, Tooltip
 } from '@mui/material';
 import {
   ReportProblemOutlined, GavelOutlined, InventoryOutlined,
   MiscellaneousServicesOutlined, AccessTimeOutlined,
-  TrendingUpOutlined, WarningAmberOutlined, CheckCircleOutline
+  TrendingUpOutlined, CheckCircleOutline
 } from '@mui/icons-material';
 
-// ─── Datos simulados ──────────────────
-const reportesPendientes = [
-  { id: 1, tipo: 'Producto', descripcion: 'Posible infracción de derechos de autor', fecha: '2026-03-25', prioridad: 'Alta' },
-  { id: 4, tipo: 'Comentario', descripcion: 'Spam masivo de enlaces externos', fecha: '2026-03-28', prioridad: 'Media' },
-];
+import { useAdminData } from '../hooks/useAdminData';
 
-const disputasActivas = [
-  { id: 'DSP-001', asunto: 'Dispositivo no devuelto', cliente: 'Carlos Méndez', proveedor: 'TechRepair Pro', desde: '2026-03-28', prioridad: 'Alta' },
-  { id: 'DSP-002', asunto: 'Pedido incompleto', cliente: 'Ana Torres', proveedor: 'Sabor Casero', desde: '2026-03-25', prioridad: 'Media' },
-  { id: 'DSP-004', asunto: 'Daños en el hogar', cliente: 'Lucía Ramírez', proveedor: 'Limpieza Express', desde: '2026-04-01', prioridad: 'Media' },
-];
-
-const statsCategoria = {
-  totalProductos: 342,
-  totalServicios: 158,
-  topProductoCat: 'Electrónica',
-  topServicioCat: 'Limpieza',
-};
-
-// ─── Helpers ──────────────────────────────────────────────────────────────────
 const getDiasTranscurridos = (fechaStr) => {
-  const hoy = new Date('2026-04-29');
-  const desde = new Date(fechaStr);
-  const diff = Math.floor((hoy - desde) / (1000 * 60 * 60 * 24));
+  const diff = Math.floor((new Date() - new Date(fechaStr)) / (1000 * 60 * 60 * 24));
   if (diff === 0) return 'Hoy';
   if (diff === 1) return '1 día';
   return `${diff} días`;
 };
 
-const prioridadConfig = {
-  Alta:  { color: '#EF4444', bg: '#FEE2E2' },
-  Media: { color: '#F59E0B', bg: '#FEF3C7' },
-  Baja:  { color: '#10B981', bg: '#D1FAE5' },
-};
-
-// ─── Sub-componente: Tarjeta contenedora ─────────────────────────────────────
 const SummaryCard = ({ title, icon, count, countColor, children, accentColor = '#1D4ED8' }) => (
   <Paper
     elevation={0}
     sx={{
-      borderRadius: 3,
-      border: '1px solid #E5E7EB',
-      overflow: 'hidden',
-      height: '100%',
-      display: 'flex',
-      flexDirection: 'column',
+      borderRadius: 3, border: '1px solid #E5E7EB', overflow: 'hidden',
+      height: '100%', display: 'flex', flexDirection: 'column',
       transition: 'box-shadow 0.2s, transform 0.2s',
       '&:hover': { boxShadow: '0 8px 24px rgba(0,0,0,0.08)', transform: 'translateY(-2px)' },
     }}
   >
-    {/* Header de la tarjeta */}
     <Box sx={{
-      px: 2.5, py: 2,
-      borderBottom: '1px solid #F3F4F6',
+      px: 2.5, py: 2, borderBottom: '1px solid #F3F4F6',
       display: 'flex', alignItems: 'center', justifyContent: 'space-between',
       background: `linear-gradient(135deg, ${accentColor}08 0%, transparent 100%)`,
     }}>
@@ -88,195 +55,190 @@ const SummaryCard = ({ title, icon, count, countColor, children, accentColor = '
         </Box>
       )}
     </Box>
-
-    {/* Contenido */}
-    <Box sx={{ px: 2.5, py: 2, flexGrow: 1 }}>
-      {children}
-    </Box>
+    <Box sx={{ px: 2.5, py: 2, flexGrow: 1 }}>{children}</Box>
   </Paper>
 );
 
-// ─── Componente Principal ───────
+const ResumenSkeleton = () => (
+  <Grid container spacing={3}>
+    {[1, 2].map((i) => (
+      <Grid item xs={12} md={6} key={i}>
+        <Paper elevation={0} sx={{ borderRadius: 3, border: '1px solid #E5E7EB', p: 2.5 }}>
+          <Skeleton variant="text" width="50%" height={32} sx={{ mb: 2 }} />
+          {[1, 2, 3].map((j) => <Skeleton key={j} variant="text" width="100%" height={24} sx={{ mb: 1 }} />)}
+        </Paper>
+      </Grid>
+    ))}
+    <Grid item xs={12}>
+      <Paper elevation={0} sx={{ borderRadius: 3, border: '1px solid #E5E7EB', p: 2.5 }}>
+        <Skeleton variant="text" width="30%" height={32} sx={{ mb: 2 }} />
+        <Skeleton variant="rectangular" height={120} sx={{ borderRadius: 2 }} />
+      </Paper>
+    </Grid>
+  </Grid>
+);
+
 const Resumen = () => {
-  const total = statsCategoria.totalProductos + statsCategoria.totalServicios;
-  const pctProductos = Math.round((statsCategoria.totalProductos / total) * 100);
-  const pctServicios = 100 - pctProductos;
+  const { data, loading, error } = useAdminData('/admin/resumen');
+
+  if (loading) return (
+    <Box>
+      <Box sx={{ mb: 4 }}>
+        <Skeleton variant="text" width="40%" height={40} />
+        <Skeleton variant="text" width="60%" height={24} />
+      </Box>
+      <ResumenSkeleton />
+    </Box>
+  );
+
+  if (error) return (
+    <Alert severity="error" sx={{ borderRadius: 3 }}>
+      Error al cargar el resumen: {error}
+    </Alert>
+  );
 
   return (
     <Box>
-      {/* Encabezado */}
       <Box sx={{ mb: 4 }}>
         <Typography variant="h5" fontWeight={800} color="text.primary">
           Resumen del Sistema
         </Typography>
         <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-          Vista general de actividad pendiente — {new Date().toLocaleDateString('es-MX', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+          Vista general de actividad pendiente — {new Date().toLocaleDateString('es-MX', {
+            weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
+          })}
         </Typography>
       </Box>
 
+      {/* Métricas rápidas */}
+      <Grid container spacing={2} sx={{ mb: 3 }}>
+        {[
+          { label: 'Usuarios',         value: data.total_usuarios,  color: '#1D4ED8', bg: '#DBEAFE' },
+          { label: 'Productos',        value: data.total_productos, color: '#7C3AED', bg: '#EDE9FE' },
+          { label: 'Pedidos totales',  value: data.total_pedidos,   color: '#0891B2', bg: '#CFFAFE' },
+          { label: 'Ingresos totales', value: `$${Number(data.ingresos_totales || 0).toLocaleString('es-MX', { minimumFractionDigits: 2 })}`, color: '#059669', bg: '#D1FAE5' },
+        ].map(({ label, value, color, bg }) => (
+          <Grid item xs={6} md={3} key={label}>
+            <Paper elevation={0} sx={{ p: 2, borderRadius: 3, border: '1px solid #E5E7EB', textAlign: 'center', bgcolor: bg }}>
+              <Typography variant="h5" fontWeight={800} color={color}>{value}</Typography>
+              <Typography variant="caption" color="text.secondary">{label}</Typography>
+            </Paper>
+          </Grid>
+        ))}
+      </Grid>
+
       <Grid container spacing={3}>
 
-        {/* ── Tarjeta 1: Reportes pendientes ── */}
+        {/* Moderación pendiente */}
         <Grid item xs={12} md={6}>
           <SummaryCard
-            title="Reportes Pendientes"
+            title="Pendientes de Moderación"
             icon={<GavelOutlined fontSize="small" />}
-            count={reportesPendientes.length}
+            count={data.productos_pendientes}
             countColor="#F59E0B"
             accentColor="#F59E0B"
           >
-            {reportesPendientes.length === 0 ? (
+            {data.productos_pendientes === 0 ? (
               <Box sx={{ textAlign: 'center', py: 3, color: 'text.disabled' }}>
                 <CheckCircleOutline sx={{ fontSize: 40, mb: 1 }} />
-                <Typography variant="body2">Sin reportes pendientes</Typography>
+                <Typography variant="body2">Sin productos pendientes ✅</Typography>
               </Box>
             ) : (
-              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
-                {reportesPendientes.map((r, i) => {
-                  const pc = prioridadConfig[r.prioridad];
-                  return (
-                    <Box key={r.id}>
-                      {i > 0 && <Divider sx={{ mb: 1.5 }} />}
-                      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 1 }}>
-                        <Box>
-                          <Typography variant="body2" fontWeight={600} sx={{ mb: 0.3 }}>
-                            {r.descripcion}
-                          </Typography>
-                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                            <Chip label={r.tipo} size="small" variant="outlined" sx={{ height: 18, fontSize: 10 }} />
-                            <Typography variant="caption" color="text.disabled">{r.fecha}</Typography>
-                          </Box>
-                        </Box>
-                        <Chip
-                          label={r.prioridad}
-                          size="small"
-                          sx={{ bgcolor: pc.bg, color: pc.color, fontWeight: 700, height: 20, fontSize: 10, flexShrink: 0 }}
-                        />
-                      </Box>
-                    </Box>
-                  );
-                })}
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                <Typography variant="body2" color="text.secondary">
+                  Hay <strong style={{ color: '#F59E0B' }}>{data.productos_pendientes} producto{data.productos_pendientes !== 1 ? 's' : ''}</strong> esperando revisión en el panel de Moderación.
+                </Typography>
+                <Chip label="Ir a Moderación →" size="small"
+                  sx={{ bgcolor: '#FEF3C7', color: '#92400E', fontWeight: 700, alignSelf: 'flex-start' }} />
               </Box>
             )}
           </SummaryCard>
         </Grid>
 
-        {/* ── Tarjeta 2: Disputas activas ── */}
+        {/* Disputas activas */}
         <Grid item xs={12} md={6}>
           <SummaryCard
             title="Disputas Activas"
             icon={<ReportProblemOutlined fontSize="small" />}
-            count={disputasActivas.length}
+            count={data.disputas_abiertas}
             countColor="#EF4444"
             accentColor="#EF4444"
           >
-            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1.5 }}>
-              {disputasActivas.map((d, i) => {
-                const dias = getDiasTranscurridos(d.desde);
-                const pc   = prioridadConfig[d.prioridad];
-                const isOld = parseInt(dias) >= 7 || dias === 'Hoy' ? false : parseInt(dias) >= 5;
-
-                return (
-                  <Box key={d.id}>
-                    {i > 0 && <Divider sx={{ mb: 1.5 }} />}
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 1 }}>
-                      <Box sx={{ flexGrow: 1 }}>
-                        <Typography variant="body2" fontWeight={700} sx={{ mb: 0.3 }}>{d.asunto}</Typography>
-                        <Typography variant="caption" color="text.secondary">
-                          {d.cliente} → {d.proveedor}
-                        </Typography>
-                      </Box>
-                      <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 0.5 }}>
-                        <Chip
-                          label={d.prioridad}
-                          size="small"
-                          sx={{ bgcolor: pc.bg, color: pc.color, fontWeight: 700, height: 18, fontSize: 10 }}
-                        />
-                        <Tooltip title={`Abierta el ${d.desde}`} arrow>
-                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.3, cursor: 'default' }}>
-                            <AccessTimeOutlined sx={{ fontSize: 11, color: isOld ? '#EF4444' : '#9CA3AF' }} />
-                            <Typography
-                              variant="caption"
-                              fontWeight={isOld ? 700 : 400}
-                              color={isOld ? 'error.main' : 'text.disabled'}
-                            >
-                              {dias}
-                            </Typography>
-                          </Box>
-                        </Tooltip>
-                      </Box>
-                    </Box>
-                  </Box>
-                );
-              })}
-            </Box>
+            {data.disputas_abiertas === 0 ? (
+              <Box sx={{ textAlign: 'center', py: 3, color: 'text.disabled' }}>
+                <CheckCircleOutline sx={{ fontSize: 40, mb: 1 }} />
+                <Typography variant="body2">Sin disputas activas ✅</Typography>
+              </Box>
+            ) : (
+              <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+                <Typography variant="body2" color="text.secondary">
+                  Hay <strong style={{ color: '#EF4444' }}>{data.disputas_abiertas} disputa{data.disputas_abiertas !== 1 ? 's' : ''}</strong> escaladas que requieren atención.
+                </Typography>
+                <Chip label="Ir a Disputas →" size="small"
+                  sx={{ bgcolor: '#FEE2E2', color: '#991B1B', fontWeight: 700, alignSelf: 'flex-start' }} />
+              </Box>
+            )}
           </SummaryCard>
         </Grid>
 
-        {/* ── Tarjeta 3: Distribución productos/servicios ── */}
+        {/* Actividad últimos 7 días */}
         <Grid item xs={12}>
           <SummaryCard
-            title="Distribución de Catálogo"
+            title="Actividad Reciente — Últimos 7 días"
             icon={<TrendingUpOutlined fontSize="small" />}
             accentColor="#1D4ED8"
           >
             <Grid container spacing={4} alignItems="center">
-
-              {/* Barra de distribución */}
-              <Grid item xs={12} md={6}>
-                <Box sx={{ mb: 2 }}>
-                  <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.8 }}>
-                      <InventoryOutlined sx={{ fontSize: 16, color: '#1D4ED8' }} />
-                      <Typography variant="body2" fontWeight={600}>Productos</Typography>
-                    </Box>
-                    <Typography variant="body2" fontWeight={800} color="#1D4ED8">{pctProductos}%</Typography>
-                  </Box>
-                  <LinearProgress
-                    variant="determinate" value={pctProductos}
-                    sx={{
-                      height: 10, borderRadius: 99, bgcolor: '#DBEAFE',
-                      '& .MuiLinearProgress-bar': { bgcolor: '#1D4ED8', borderRadius: 99 }
-                    }}
-                  />
-                  <Typography variant="caption" color="text.disabled" sx={{ mt: 0.5, display: 'block' }}>
-                    {statsCategoria.totalProductos.toLocaleString()} productos · Top: {statsCategoria.topProductoCat}
+              <Grid item xs={12} md={8}>
+                {!data.pedidos_por_dia?.length ? (
+                  <Typography variant="body2" color="text.disabled" sx={{ py: 2 }}>
+                    Sin pedidos en los últimos 7 días
                   </Typography>
-                </Box>
-
-                <Box>
-                  <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.8 }}>
-                      <MiscellaneousServicesOutlined sx={{ fontSize: 16, color: '#FACC15' }} />
-                      <Typography variant="body2" fontWeight={600}>Servicios</Typography>
-                    </Box>
-                    <Typography variant="body2" fontWeight={800} color="#B45309">{pctServicios}%</Typography>
+                ) : (
+                  <Box sx={{ display: 'flex', alignItems: 'flex-end', gap: 1, height: 80 }}>
+                    {data.pedidos_por_dia.map((dia) => {
+                      const maxCantidad = Math.max(...data.pedidos_por_dia.map(d => d.cantidad), 1);
+                      const pct = Math.round((dia.cantidad / maxCantidad) * 100);
+                      return (
+                        <Tooltip
+                          key={dia.dia}
+                          title={`${new Date(dia.dia + 'T12:00:00').toLocaleDateString('es-MX', { weekday: 'short', day: 'numeric' })}: ${dia.cantidad} pedido${dia.cantidad !== 1 ? 's' : ''}`}
+                          arrow
+                        >
+                          <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 0.5 }}>
+                            <Box sx={{
+                              width: '100%', bgcolor: '#1D4ED8', borderRadius: '4px 4px 0 0',
+                              height: `${Math.max(pct * 0.6, 4)}px`,
+                              cursor: 'default',
+                              '&:hover': { bgcolor: '#1e40af' },
+                            }} />
+                            <Typography variant="caption" color="text.disabled" fontSize={9}>
+                              {new Date(dia.dia + 'T12:00:00').toLocaleDateString('es-MX', { day: 'numeric' })}
+                            </Typography>
+                          </Box>
+                        </Tooltip>
+                      );
+                    })}
                   </Box>
-                  <LinearProgress
-                    variant="determinate" value={pctServicios}
-                    sx={{
-                      height: 10, borderRadius: 99, bgcolor: '#FEF9C3',
-                      '& .MuiLinearProgress-bar': { bgcolor: '#FACC15', borderRadius: 99 }
-                    }}
-                  />
-                  <Typography variant="caption" color="text.disabled" sx={{ mt: 0.5, display: 'block' }}>
-                    {statsCategoria.totalServicios.toLocaleString()} servicios · Top: {statsCategoria.topServicioCat}
-                  </Typography>
-                </Box>
+                )}
               </Grid>
-
-              {/* Métricas numéricas */}
-              <Grid item xs={12} md={6}>
-                <Grid container spacing={2}>
+              <Grid item xs={12} md={4}>
+                <Grid container spacing={1.5}>
                   {[
-                    { label: 'Total en catálogo', value: total.toLocaleString(), color: '#1D4ED8', bg: '#DBEAFE' },
-                    { label: 'Productos activos', value: statsCategoria.totalProductos, color: '#1D4ED8', bg: '#EFF6FF' },
-                    { label: 'Servicios activos', value: statsCategoria.totalServicios, color: '#B45309', bg: '#FEF9C3' },
-                    { label: 'Categorías',         value: '12',   color: '#7C3AED', bg: '#EDE9FE' },
+                    {
+                      label: 'Pedidos esta semana',
+                      value: data.pedidos_por_dia?.reduce((s, d) => s + Number(d.cantidad), 0) || 0,
+                      color: '#1D4ED8', bg: '#DBEAFE'
+                    },
+                    {
+                      label: 'Ingresos esta semana',
+                      value: `$${Number(data.pedidos_por_dia?.reduce((s, d) => s + Number(d.monto || 0), 0) || 0).toLocaleString('es-MX', { minimumFractionDigits: 0 })}`,
+                      color: '#059669', bg: '#D1FAE5'
+                    },
                   ].map(({ label, value, color, bg }) => (
-                    <Grid item xs={6} key={label}>
-                      <Paper variant="outlined" sx={{ p: 1.5, borderRadius: 2, textAlign: 'center', bgcolor: bg, borderColor: 'transparent' }}>
-                        <Typography variant="h5" fontWeight={800} color={color}>{value}</Typography>
+                    <Grid item xs={12} key={label}>
+                      <Paper variant="outlined" sx={{ p: 1.5, borderRadius: 2, bgcolor: bg, borderColor: 'transparent' }}>
+                        <Typography variant="h6" fontWeight={800} color={color}>{value}</Typography>
                         <Typography variant="caption" color="text.secondary">{label}</Typography>
                       </Paper>
                     </Grid>

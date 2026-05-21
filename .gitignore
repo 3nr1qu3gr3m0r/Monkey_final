@@ -11,3 +11,6 @@ frontend/.env
 #Modulos a ignorar de ia
 ia/chroma_db
 ia/.env
+
+#Ignorar entornos virtuales
+venv/

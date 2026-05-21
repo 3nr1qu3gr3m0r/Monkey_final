@@ -71,6 +71,7 @@ const clienteRoutes = require('./routes/client.routes');
 const chatRoutes = require('./routes/chat.routes'); 
 const searchRoutes = require('./routes/search.routes');
 const walletRoutes = require('./routes/wallet.routes');
+const adminRoutes = require('./routes/admin.routes');
 
 // ==========================================
 // 4. VINCULACIÓN DE RUTAS GLOBALES
@@ -91,6 +92,8 @@ app.use('/api/cliente', clienteRoutes);
 app.use('/api/chat', chatRoutes); 
 app.use('/api/search', searchRoutes);
 app.use('/api/wallet', walletRoutes);
+app.use('/api/admin', adminRoutes);
+
 
 // Ruta de salud del servidor
 app.get('/', (req, res) => {
