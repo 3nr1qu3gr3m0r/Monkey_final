@@ -15,7 +15,7 @@ load_dotenv()
 os.environ["CHROMA_TELEMETRY_DISABLED"] = "1"
 os.environ["ANONYMIZED_TELEMETRY"] = "False"
 
-app = FastAPI(title="MonkeyMarket AI Service", version="2.0.0")
+app = FastAPI(title="MonkeyMarket AI Service")
 
 app.add_middleware(
     CORSMiddleware,
@@ -33,6 +33,7 @@ chroma_client = chromadb.PersistentClient(path=str(DB_PATH))
 COLLECTION_NAME = "monkeymarket_catalog"
 
 response_cache: Dict[str, Any] = {}
+embedder = None # Lo cargamos perezosamente (Lazy Loading)
 
 class Message(BaseModel):
     role: str
@@ -51,14 +52,14 @@ def normalizar_texto(texto: str) -> str:
     texto = texto.lower().strip()
     return ''.join(c for c in unicodedata.normalize('NFD', texto) if unicodedata.category(c) != 'Mn')
 
-def generar_embedding_con_gemini(texto: str) -> List[float]:
-    if not client_ai:
-        return [0.0] * 768
-    response = client_ai.models.embed_content(
-        model="text-embedding-004",
-        contents=texto
-    )
-    return response.embeddings[0].values
+# Cargamos el modelo local solo cuando se necesita para ahorrar RAM al inicio
+def get_embedder():
+    global embedder
+    if embedder is None:
+        print("Cargando modelo local en RAM por primera vez...")
+        from sentence_transformers import SentenceTransformer
+        embedder = SentenceTransformer('paraphrase-multilingual-MiniLM-L12-v2')
+    return embedder
 
 def clasificar_intencion_con_gemini(mensaje: str, historial: List[Message]) -> Dict[str, Any]:
     if not client_ai:
@@ -69,13 +70,8 @@ def clasificar_intencion_con_gemini(mensaje: str, historial: List[Message]) -> D
     prompt = f"""
 Eres un clasificador de intenciones para un marketplace de eventos en México.
 Analiza el mensaje y devuelve UNICAMENTE un JSON estructurado.
-
-HISTORIAL RECIENTE:
-{historial_str}
-
-MENSAJE ACTUAL DEL USUARIO:
-"{mensaje}"
-
+HISTORIAL RECIENTE: {historial_str}
+MENSAJE ACTUAL DEL USUARIO: "{mensaje}"
 RESPONDE ÚNICAMENTE CON ESTE FORMATO JSON:
 {{
   "categorias_detectadas": [], 
@@ -115,16 +111,18 @@ async def analyze_message(request: AnalyzeRequest):
             )
 
         query_limpia = clasificacion.get("query_optimizada", request.message)
-        tematica = clasificacion.get("tematica")
+        
+        # Obtenemos el vector de la pregunta usando el modelo local
+        local_embedder = get_embedder()
+        query_embedding = local_embedder.encode(normalizar_texto(query_limpia)).tolist()
 
         collection = chroma_client.get_or_create_collection(name=COLLECTION_NAME)
-        query_embedding = generar_embedding_con_gemini(normalizar_texto(query_limpia))
-
-        grouped_by_category: Dict[str, List] = {}
-        seen_names = set()
 
         res = collection.query(query_embeddings=[query_embedding], n_results=10)
         
+        grouped_by_category: Dict[str, List] = {}
+        seen_names = set()
+
         if res.get('metadatas') and res['metadatas'][0]:
             for i, meta in enumerate(res['metadatas'][0]):
                 nombre = meta.get("nombre", "Sin nombre")
@@ -155,12 +153,8 @@ async def analyze_message(request: AnalyzeRequest):
         prompt_redactor = f"""
 Eres un asistente mexicano de eventos para MonkeyMarket. Responde corto (máx 40 palabras).
 No listes IDs ni precios. Sé asertivo.
-
-CATÁLOGO ENCONTRADO:
-{context_str}
-
+CATÁLOGO ENCONTRADO: {context_str}
 USUARIO: {request.message}
-
 RESPONDE SÓLO ESTE JSON:
 {{"action": "RECOMMENDATION", "content": "tu respuesta amigable aquí"}}
 """
