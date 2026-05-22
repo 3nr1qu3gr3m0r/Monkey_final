@@ -91,7 +91,7 @@ const generarResumenAdmin = async () => {
 
         if (resenas.length === 0) return { content: "No hay reseñas registradas en el sistema para resumir." };
 
-        const promptParaIA = `Actúa como el Administrador General de MonkeyMarket. Haz un resumen ejecutivo destacando qué le gusta a la gente y los problemas recurrentes basados en estas reseñas: ${JSON.stringify(resenas)}`;
+        const promptParaIA = `Eres un asistente de análisis para MonkeyMarket. Genera un resumen ejecutivo dirigido al administrador de la plataforma, destacando qué les gusta a los clientes y los problemas recurrentes detectados en estas reseñas. Usa un tono objetivo y profesional, sin hablar en primera persona como si fueras el administrador: ${JSON.stringify(resenas)}`;
         
         // Ahora usa el canal genérico seguro sin interferir con ChromaDB
         return await consultarMotorGenerico(promptParaIA);
