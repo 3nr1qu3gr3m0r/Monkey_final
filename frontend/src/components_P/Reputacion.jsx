@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Box, Typography, Button, Chip, CircularProgress,
   Alert, Divider, LinearProgress, Avatar, Card,
@@ -51,13 +51,55 @@ function ScoreBadge({ valor }) {
 export default function Reputacion() {
   // ▼ Reseñas y devoluciones vienen del store (los mismos datos que MisServicios)
   const { state } = useStore();
-  const RESENAS = state.resenas;
+  
+  // Convertimos en estados reactivos para poder inyectar lo del backend al cargar la página
+  const [RESENAS, setRESENAS] = useState(state.resenas || []);
   const DEVOLUCIONES = state.devoluciones;
 
   const [reporte, setReporte]               = useState(null);
   const [cargando, setCargando]             = useState(false);
   const [error, setError]                   = useState(null);
   const [filtroEstrellas, setFiltroEstrellas] = useState('todas');
+
+  // ▼ Conexión automática con el endpoint del Backend de Node
+  useEffect(() => {
+    const cargarResenasBackend = async () => {
+      try {
+        const res = await fetch('http://localhost:3000/api/recommendations/33');
+        if (res.ok) {
+          const data = await res.json();
+          if (data.resenas_detalladas && data.resenas_detalladas.length > 0) {
+            // Mapeamos el JSON de la base de datos al formato exacto que tu diseño necesita renderizar
+            const resenasMapeadas = data.resenas_detalladas.map((r, index) => ({
+              id: r.id_resena || index,
+              autor: "Cliente MonkeyMarket",
+              avatar: r.tipo_item === 'producto' ? 'P' : 'S',
+              servicio: `${r.tipo_item.toUpperCase()}: ${r.titulo_item}`,
+              estrellas: r.calificacion,
+              texto: r.comentario || "Sin comentarios escritos.",
+              fecha: "Reciente"
+            }));
+            setRESENAS(resenasMapeadas);
+            
+            // Si el backend ya trae las recomendaciones procesadas de la IA las seteamos aquí
+            if (data.recomendaciones) {
+              setReporte({
+                resumen: data.recomendaciones,
+                puntuacion: data.calificacion_promedio,
+                puntosFuertes: [],
+                areasMejora: [],
+                recomendaciones: []
+              });
+            }
+          }
+        }
+      } catch (err) {
+        console.error("Error cargando reseñas del backend:", err);
+      }
+    };
+
+    cargarResenasBackend();
+  }, []);
 
   const totalResenas    = RESENAS.length;
   const promedioGeneral = totalResenas
@@ -76,63 +118,47 @@ export default function Reputacion() {
     ? RESENAS
     : RESENAS.filter(r => r.estrellas === Number(filtroEstrellas));
 
-  // ─── Generar reporte IA ────────────────────────────────────────────────────
+// ─── Generar reporte IA ────────────────────────────────────────────────────
   const generarReporte = async () => {
     setCargando(true);
     setError(null);
     setReporte(null);
 
-    const resumenResenas = RESENAS.map(r =>
-      `[${r.estrellas}★] ${r.servicio} — "${r.texto}"`
-    ).join('\n');
-
-    const resumenDevoluciones = DEVOLUCIONES.map(d =>
-      `- ${d.articulo}: ${d.motivo} (${d.estado})`
-    ).join('\n');
-
-    const prompt = `Eres un consultor de reputación digital para MonkeyMarket, una plataforma de servicios y productos para eventos.
-
-Analiza las siguientes reseñas y devoluciones de un proveedor y genera un reporte estructurado en JSON con este formato exacto (sin markdown, solo JSON puro):
-
-{
-  "resumen": "Un párrafo ejecutivo de 2-3 oraciones resumiendo el estado general de la reputación.",
-  "puntuacion": ${promedioGeneral},
-  "puntosFuertes": [
-    { "titulo": "Título corto", "descripcion": "Explicación de 1-2 oraciones basada en las reseñas." }
-  ],
-  "areasMejora": [
-    { "titulo": "Título corto", "descripcion": "Explicación de 1-2 oraciones basada en las reseñas." }
-  ],
-  "recomendaciones": [
-    "Acción concreta y específica que el proveedor puede tomar."
-  ]
-}
-
-RESEÑAS (${totalResenas} en total, promedio ${promedioGeneral}★):
-${resumenResenas}
-
-DEVOLUCIONES (${DEVOLUCIONES.length}):
-${resumenDevoluciones}
-
-Genera exactamente 3 puntos fuertes, 3 áreas de mejora y 3 recomendaciones. Basa todo en evidencia concreta de las reseñas. Solo responde con el JSON, sin texto adicional.`;
-
     try {
-      const res = await fetch('https://api.anthropic.com/v1/messages', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          model: 'claude-sonnet-4-20250514',
-          max_tokens: 1000,
-          messages: [{ role: 'user', content: prompt }],
-        }),
-      });
+      // Llamamos directamente a tu endpoint local que ya expone las reseñas y el promedio
+      const res = await fetch('http://localhost:3000/api/recommendations/33');
+      
+      if (!res.ok) {
+        throw new Error('Error en la respuesta del servidor');
+      }
+
       const data = await res.json();
-      const texto = data.content?.find(b => b.type === 'text')?.text ?? '';
-      const clean = texto.replace(/```json|```/g, '').trim();
-      const parsed = JSON.parse(clean);
-      setReporte(parsed);
+
+      // Validamos si la respuesta del backend contiene la estructura esperada de la IA
+      if (data.recomendaciones && typeof data.recomendaciones === 'object') {
+        setReporte({
+          resumen: data.recomendaciones.resumen || 'Sin resumen disponible.',
+          puntuacion: data.calificacion_promedio || promedioGeneral,
+          puntosFuertes: data.recomendaciones.puntosFuertes || [],
+          areasMejora: data.recomendaciones.areasMejora || [],
+          recomendaciones: data.recomendaciones.recomendaciones || []
+        });
+      } else if (typeof data.recomendaciones === 'string') {
+        // Si el backend responde con un mensaje de texto plano o error controlado
+        setReporte({
+          resumen: data.recomendaciones,
+          puntuacion: data.calificacion_promedio || promedioGeneral,
+          puntosFuertes: [],
+          areasMejora: [],
+          recomendaciones: []
+        });
+      } else {
+        setError('El backend no regresó un formato de IA válido.');
+      }
+
     } catch (e) {
-      setError('No se pudo generar el reporte. Verifica tu conexión e intenta de nuevo.');
+      console.error(e);
+      setError('No se pudo conectar con el servidor de IA. Verifica que el backend esté corriendo.');
     } finally {
       setCargando(false);
     }
@@ -246,7 +272,7 @@ Genera exactamente 3 puntos fuertes, 3 áreas de mejora y 3 recomendaciones. Bas
             {/* Resumen ejecutivo */}
             <Box sx={{ backgroundColor: '#f8faff', borderRadius: 2, p: 2, mb: 3, borderLeft: '4px solid #6366f1' }}>
               <Typography variant="body2" color="text.secondary" fontWeight={600} sx={{ mb: 0.5, textTransform: 'uppercase', fontSize: 11, letterSpacing: 0.5 }}>Resumen ejecutivo</Typography>
-              <Typography variant="body2" sx={{ lineHeight: 1.8, color: '#1e293b' }}>{reporte.resumen}</Typography>
+              <Typography variant="body2" sx={{ lineHeight: 1.8, color: '#1e293b', whiteSpace: 'pre-line' }}>{reporte.resumen}</Typography>
             </Box>
 
             <Box sx={{ display: 'flex', gap: 3, flexWrap: 'wrap' }}>

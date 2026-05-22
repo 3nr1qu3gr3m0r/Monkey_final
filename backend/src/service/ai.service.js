@@ -4,7 +4,7 @@ require('dotenv').config();
 const AI_SERVICE_URL = process.env.AI_SERVICE_URL || process.env.PYTHON_SERVICE_URL || 'http://127.0.0.1:8000';
 
 /**
- * LÓGICA ORIGINAL DEL EQUIPO DE IA
+ * LÓGICA ORIGINAL DEL EQUIPO DE IA 
  */
 const consultarMotorIA = async (mensajeUsuario, historial = []) => {
     try {
@@ -28,8 +28,33 @@ const consultarMotorIA = async (mensajeUsuario, historial = []) => {
 };
 
 /**
- * PARTE NUEVA: GESTIÓN DE RESEÑAS (PERSONA A)
+ * HELPER INTERNO PARA CONSULTAS GENÉRICAS 
+ * Apunta al nuevo endpoint seguro sin tocar ni alterar la lógica del chatbot.
  */
+const consultarMotorGenerico = async (mensajeUsuario) => {
+    try {
+        const response = await fetch(`${AI_SERVICE_URL}/analyze-generic`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ message: mensajeUsuario, history: [] })
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.detail || 'Error en el servicio genérico de IA Python');
+        }
+
+        const data = await response.json();
+        return { action: data.action, content: data.content, entities: data.entities };
+    } catch (error) {
+        console.error("Error al conectar con el endpoint genérico de IA:", error.message);
+        throw error;
+    }
+};
+
+
+ // PARTE NUEVA: GESTIÓN DE RESEÑAS 
+
 const generarRecomendacionesProveedor = async (proveedorId) => {
     try {
         const [resenas] = await db.query(`
@@ -45,7 +70,8 @@ const generarRecomendacionesProveedor = async (proveedorId) => {
 
         const promptParaIA = `Actúa como un consultor experto en negocios. Analiza las siguientes reseñas de mis clientes en MonkeyMarket y dime 3 recomendaciones específicas y accionables para mejorar mi servicio o producto: ${JSON.stringify(resenas)}`;
         
-        return await consultarMotorIA(promptParaIA);
+        // Ahora usa el canal genérico seguro sin interferir con ChromaDB
+        return await consultarMotorGenerico(promptParaIA);
     } catch (error) {
         console.error("Error al generar recomendaciones:", error);
         throw error;
@@ -67,7 +93,8 @@ const generarResumenAdmin = async () => {
 
         const promptParaIA = `Actúa como el Administrador General de MonkeyMarket. Haz un resumen ejecutivo destacando qué le gusta a la gente y los problemas recurrentes basados en estas reseñas: ${JSON.stringify(resenas)}`;
         
-        return await consultarMotorIA(promptParaIA);
+        // Ahora usa el canal genérico seguro sin interferir con ChromaDB
+        return await consultarMotorGenerico(promptParaIA);
     } catch (error) {
         console.error("Error al generar resumen admin:", error);
         throw error;

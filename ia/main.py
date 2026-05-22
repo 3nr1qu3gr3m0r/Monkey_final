@@ -295,14 +295,28 @@ RESPONDE ÚNICAMENTE CON ESTE JSON (sin backticks, sin markdown, sin explicacion
 """
 
     try:
+        # Forzamos a Gemini a usar el esquema JSON exacto mediante types de Pydantic/Dict nativos
         response = client_ai.models.generate_content(
             model='gemini-2.5-flash',
             contents=prompt,
+            config={
+                "response_mime_type": "application/json",
+                "response_schema": {
+                    "type": "OBJECT",
+                    "properties": {
+                        "categorias_detectadas": {"type": "ARRAY", "items": {"type": "STRING"}},
+                        "tematica": {"type": "STRING", "nullable": True},
+                        "query_optimizada": {"type": "STRING"},
+                        "tiene_suficiente_contexto": {"type": "BOOLEAN"}
+                    },
+                    "required": ["categorias_detectadas", "tematica", "query_optimizada", "tiene_suficiente_contexto"]
+                }
+            }
         )
-        raw      = response.text.strip().replace("```json", "").replace("```", "").strip()
-        # BLINDAJE JSON (CORREGIDO)
-        raw = raw.replace("\n", "\\n").replace("\r", "")
-        resultado = json.loads(raw, strict=False)
+        
+        # Al usar response_schema, .text ya es un JSON 100% garantizado y limpio
+        raw = response.text.strip()
+        resultado = json.loads(raw)
 
         # Validamos que las categorías devueltas existan en el catálogo real
         nombres_validos = {cat["nombre"] for cat in categorias}
@@ -311,7 +325,7 @@ RESPONDE ÚNICAMENTE CON ESTE JSON (sin backticks, sin markdown, sin explicacion
             if c in nombres_validos
         ]
 
-        print(f"🧠 Clasificación Gemini: {resultado}")
+        print(f"🧠 Clasificación Gemini exitosa: {resultado}")
         return resultado
 
     except Exception as e:
@@ -516,14 +530,23 @@ EJEMPLO DE RESPUESTA IDEAL:
 """
 
         try:
-            resp   = client_ai.models.generate_content(
+            resp = client_ai.models.generate_content(
                 model='gemini-2.5-flash',
                 contents=prompt_redactor,
+                config={
+                    "response_mime_type": "application/json",
+                    "response_schema": {
+                        "type": "OBJECT",
+                        "properties": {
+                            "action": {"type": "STRING"},
+                            "content": {"type": "STRING"}
+                        },
+                        "required": ["action", "content"]
+                    }
+                }
             )
-            raw    = resp.text.strip().replace("```json", "").replace("```", "").strip()
-            # BLINDAJE JSON (CORREGIDO)
-            raw = raw.replace("\n", "\\n").replace("\r", "")
-            parsed = json.loads(raw, strict=False)
+            raw = resp.text.strip()
+            parsed = json.loads(raw)
             
             action     = parsed.get("action", "RECOMMENDATION")
             ai_content = parsed.get("content", "¡Aquí tienes las mejores opciones para tu evento!")
@@ -548,6 +571,41 @@ EJEMPLO DE RESPUESTA IDEAL:
 
     except Exception as e:
         print(f"❌ Error fatal en /analyze: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+    
+
+class GenericAnalyzeRequest(BaseModel):
+    message: str
+    history: list = [] 
+
+
+@app.post("/analyze-generic")
+async def analyze_generic(request: GenericAnalyzeRequest):
+    """
+    Este endpoint procesa peticiones directas a Gemini.
+    Ideal para resúmenes ejecutivos y recomendaciones de negocio
+    sin pasar por el embudo de ChromaDB ni tarjetas de productos.
+    """
+    if not client_ai:
+        raise HTTPException(
+            status_code=500, 
+            detail="GOOGLE_API_KEY no configurada en el archivo .env de Python"
+        )
+    try:
+        # Llamamos directo a Gemini con el prompt estructurado por Node.js
+        response = client_ai.models.generate_content(
+            model='gemini-2.5-flash',
+            contents=request.message
+        )
+        
+        # Devolvemos la estructura exacta que ai.service.js mapea (.action, .content, .entities)
+        return {
+            "action": "SUMMARY_GENERATED",
+            "content": response.text.strip(),
+            "entities": {}
+        }
+    except Exception as e:
+        print(f"Error en /analyze-generic: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 # ============================================================
