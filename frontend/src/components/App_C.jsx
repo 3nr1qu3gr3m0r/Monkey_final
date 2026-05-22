@@ -198,7 +198,7 @@ function AppC({ user, carrito, setCarrito, agregarAlCarrito, ajustarCantidad }) 
       
       // ⚠️ IMPORTANTE: Asegúrate de que esta ruta sea exactamente la de tu backend Node.js
       // Si en Node usas app.use('/api/ia', ...), aquí debe ser '/api/ia/analyze'
-      const response = await apiClient.post('/api/ia/analyze', {
+      const response = await apiClient.post('/ia/analyze', {
         message: userText,
         history: historial
       });
