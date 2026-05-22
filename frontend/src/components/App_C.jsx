@@ -205,8 +205,11 @@ function AppC({ user, carrito, setCarrito, agregarAlCarrito, ajustarCantidad }) 
       setChatHistory(prev => [...prev, { role: 'ai', text: content }]);
 
       if (entities?.recommendations && entities.recommendations.length > 0) {
-        setChatPhase('results');
+        console.log('✅ Recommendations recibidas:', entities.recommendations.length);
+        // ⭐ Guardar los datos completos de las recomendaciones, no solo los IDs
+        setProductosData(entities.recommendations);
         setIdsRecomendados(entities.recommendations.map(r => r.id));
+        setChatPhase('results');
       } else if (action === 'RECOMMENDATION') {
         setChatPhase('results');
       }

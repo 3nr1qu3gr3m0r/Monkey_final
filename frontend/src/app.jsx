@@ -334,7 +334,7 @@ function App() {
           
           <Route path="/cart" element={<Carrito user={user} carrito={carrito} setCarrito={setCarrito} eliminarDelCarrito={eliminarDelCarrito} vaciarCarrito={vaciarCarrito} ajustarCantidad={ajustarCantidad} />} />
           <Route path="/checkout" element={<Checkout user={user} carrito={carrito} vaciarCarrito={vaciarCarrito} />} />
-          <Route path="/payment-success" element={<SuccessPage user={user} carrito={carrito} vaciarCarrito={vaciarCarrito} />} />
+          <Route path="/TicketCompra" element={<SuccessPage user={user} carrito={carrito} vaciarCarrito={vaciarCarrito} />} />
           <Route path="/admin" element={<ProtectedRoute isAuthenticated={isAuthenticated}><AdminDashboard user={user} onLogout={handleLogout} /></ProtectedRoute>} />
           <Route path="/dashboard-proveedor" element={<ProtectedRoute isAuthenticated={isAuthenticated}><DashboardProveedor user={user} onLogout={handleLogout} /></ProtectedRoute>} />
           <Route path="/perfil" element={<ProtectedRoute isAuthenticated={isAuthenticated}><Perfil user={user} onUpdate={updateUser} /></ProtectedRoute>} />

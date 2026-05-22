@@ -127,7 +127,7 @@ function App() {
           <Route path="/home" element={<AppC user={user} carrito={carrito} agregarAlCarrito={agregarAlCarrito} ajustarCantidad={ajustarCantidad} />} />
           <Route path="/cart" element={<Carrito user={user} carrito={carrito} setCarrito={setCarrito} eliminarDelCarrito={eliminarDelCarrito} vaciarCarrito={vaciarCarrito} ajustarCantidad={ajustarCantidad} />} />
           <Route path="/checkout" element={<Checkout user={user} carrito={carrito} vaciarCarrito={vaciarCarrito} />} />
-          <Route path="/payment-success" element={<SuccessPage user={user} carrito={carrito} vaciarCarrito={vaciarCarrito} />} />
+          <Route path="/TicketCompra" element={<SuccessPage user={user} carrito={carrito} vaciarCarrito={vaciarCarrito} />} />
           <Route path="/admin" element={<AdminDashboard />} />
           <Route path="/dashboard-proveedor" element={<DashboardProveedor user={user} />} />
           <Route path="/perfil" element={<Perfil user={user} />} />
