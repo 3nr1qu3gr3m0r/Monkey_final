@@ -43,6 +43,8 @@ const createPreference = async (req, res) => {
         const clienteSeguro = user || req.user || {};
         const emailSeguro = (clienteSeguro.correo && clienteSeguro.correo.includes('@')) ? clienteSeguro.correo : 'cliente@monkeymarket.com';
 
+        const frontendUrl = process.env.FRONTEND_URL || "https://frontend-production-6ca5.up.railway.app";
+
         const preference = new Preference(client);
         const response = await preference.create({
             body: {
@@ -52,11 +54,12 @@ const createPreference = async (req, res) => {
                 },
                 payer: { name: clienteSeguro.nombre || "Cliente", email: emailSeguro },
                 back_urls: {
-                    success: "http://localhost:5173/payment-success",
-                    failure: "http://localhost:5173/checkout",
-                    pending: "http://localhost:5173/checkout"
+                    success: `${frontendUrl}/TicketCompra`,
+                    failure: `${frontendUrl}/checkout`,
+                    pending: `${frontendUrl}/checkout`
                 },
-                notification_url: "https://sonja-chaetotactic-suzi.ngrok-free.dev/api/payments/webhook",
+                auto_return: "approved",
+                notification_url: process.env.MP_WEBHOOK_URL || "https://puny-clocks-feel.loca.lt/api/payments/webhook",
                 external_reference: JSON.stringify({
                     userId: clienteSeguro.id || req.user.id,
                     direccionId: direccion_envio ? direccion_envio.id : null
