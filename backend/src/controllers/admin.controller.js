@@ -2,23 +2,28 @@
 const db = require('../config/db');
 
 // ─────────────────────────────────────────────
-//  RESUMEN  –  métricas generales del dashboard
+//  RESUMEN  –  métricas generales del dashboard (CORREGIDO)
 // ─────────────────────────────────────────────
 exports.getResumen = async (req, res) => {
   try {
     const [[{ total_usuarios }]]      = await db.query(`SELECT COUNT(*) AS total_usuarios FROM usuarios`);
     const [[{ total_productos }]]     = await db.query(`SELECT COUNT(*) AS total_productos FROM productos`);
     const [[{ total_pedidos }]]       = await db.query(`SELECT COUNT(*) AS total_pedidos FROM pedidos`);
-    const [[{ ingresos_totales }]]    = await db.query(`SELECT IFNULL(SUM(total), 0) AS ingresos_totales FROM pedidos WHERE estado != 'cancelado'`);
-    const [[{ disputas_abiertas }]]   = await db.query(`SELECT COUNT(*) AS disputas_abiertas FROM disputas WHERE estado IN ('abierta_con_proveedor','escalado_a_admin')`);
-    const [[{ productos_pendientes }]]= await db.query(`SELECT COUNT(*) AS productos_pendientes FROM productos WHERE estado = 'pendiente'`);
+    
+    // ✅ CORREGIDO: Se usa 'monto_total' de tu script real y se apoda 'ingresos_totales'
+    const [[{ ingresos_totales }]]    = await db.query(`SELECT IFNULL(SUM(monto_total), 0) AS ingresos_totales FROM pedidos WHERE estado != 'cancelado'`);
+    
+    // ✅ CORREGIDO: Se usa el ENUM real 'escalada_admin' de tu script
+    const [[{ disputas_abiertas }]]   = await db.query(`SELECT COUNT(*) AS disputas_abiertas FROM disputas WHERE estado IN ('abierta_con_proveedor','escalada_admin')`);
+    const [[{ productos_pendientes }]]= await db.query(`SELECT COUNT(*) AS productos_pendientes FROM productos WHERE esta_activo = FALSE`); // o tu lógica de aprobación
 
     // Pedidos de los últimos 7 días (para mini gráfica)
+    // ✅ CORREGIDO: Se usa 'fecha_creacion' y 'monto_total' según tu script de pedidos
     const [pedidos_por_dia] = await db.query(`
-      SELECT DATE(fecha_pedido) AS dia, COUNT(*) AS cantidad, SUM(total) AS monto
+      SELECT DATE(fecha_creacion) AS dia, COUNT(*) AS cantidad, SUM(monto_total) AS monto
       FROM pedidos
-      WHERE fecha_pedido >= DATE_SUB(NOW(), INTERVAL 7 DAY)
-      GROUP BY DATE(fecha_pedido)
+      WHERE fecha_creacion >= DATE_SUB(NOW(), INTERVAL 7 DAY)
+      GROUP BY DATE(fecha_creacion)
       ORDER BY dia ASC
     `);
 
@@ -38,18 +43,19 @@ exports.getResumen = async (req, res) => {
 };
 
 // ─────────────────────────────────────────────
-//  MODERACIÓN  –  productos pendientes de aprobación
+//  MODERACIÓN  –  productos pendientes de aprobación (CORREGIDO)
 // ─────────────────────────────────────────────
 exports.getProductosPendientes = async (req, res) => {
   try {
+    // ✅ CORREGIDO: Se usan columnas reales: p.titulo AS nombre, p.proveedor_id, c.nombre
+    // Se usa un LEFT JOIN con categorias usando la columna de texto de tu script
     const [rows] = await db.query(`
-      SELECT p.id, p.nombre, p.descripcion, p.precio, p.estado, p.imagen_url,
-             u.nombre AS vendedor, u.email AS vendedor_email, u.id AS vendedor_id,
-             c.nombre AS categoria
+      SELECT p.id, p.titulo AS nombre, p.descripcion, p.precio, p.esta_activo, p.imagenes AS imagen_url,
+             u.nombre AS vendedor, u.correo AS vendedor_email, u.id AS vendedor_id,
+             p.categoria
       FROM productos p
-      JOIN usuarios u ON p.usuario_id = u.id
-      LEFT JOIN categorias c ON p.categoria_id = c.id
-      WHERE p.estado = 'pendiente'
+      JOIN usuarios u ON p.proveedor_id = u.id
+      WHERE p.esta_activo = FALSE
       ORDER BY p.id DESC
     `);
     res.json(rows);
