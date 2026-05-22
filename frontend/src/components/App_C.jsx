@@ -194,10 +194,16 @@ function AppC({ user, carrito, setCarrito, agregarAlCarrito, ajustarCantidad }) 
         content: msg.text
       }));
 
-      const response = await apiClient.post('/ai/analyze', {
+      console.log("⏳ Enviando mensaje a Node.js...");
+      
+      // ⚠️ IMPORTANTE: Asegúrate de que esta ruta sea exactamente la de tu backend Node.js
+      // Si en Node usas app.use('/api/ia', ...), aquí debe ser '/api/ia/analyze'
+      const response = await apiClient.post('/api/ia/analyze', {
         message: userText,
         history: historial
       });
+
+      console.log("🤖 Respuesta cruda de la IA:", response.data);
 
       const { action, content, entities } = response.data;
 
@@ -205,9 +211,10 @@ function AppC({ user, carrito, setCarrito, agregarAlCarrito, ajustarCantidad }) 
       setChatHistory(prev => [...prev, { role: 'ai', text: content }]);
 
       if (entities?.recommendations && entities.recommendations.length > 0) {
-        console.log('✅ Recommendations recibidas:', entities.recommendations.length);
-        // ⭐ Guardar los datos completos de las recomendaciones, no solo los IDs
-        setProductosData(entities.recommendations);
+        console.log('✅ IDs Recomendados recibidos:', entities.recommendations.length);
+        
+        // 🚀 MAGIA PURA: Solo guardamos los IDs. 
+        // El filtro de abajo se encargará de cruzar estos IDs con 'productosData' (el catálogo con fotos reales).
         setIdsRecomendados(entities.recommendations.map(r => r.id));
         setChatPhase('results');
       } else if (action === 'RECOMMENDATION') {
@@ -215,11 +222,11 @@ function AppC({ user, carrito, setCarrito, agregarAlCarrito, ajustarCantidad }) 
       }
 
     } catch (error) {
-      console.error("Error communicating with MonkeyIA:", error);
+      console.error("❌ Error comunicándose con MonkeyIA:", error);
       setIsAITyping(false);
       setChatHistory(prev => [...prev, {
         role: 'ai',
-        text: 'Lo siento, tuve un problema conectando con mi base de datos. 🐵 ¿Podrías intentar de nuevo?'
+        text: 'Lo siento, tuve un problema conectando con mi cerebro. 🐵 ¿Podrías intentar de nuevo?'
       }]);
     }
   };
