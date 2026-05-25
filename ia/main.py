@@ -25,7 +25,6 @@ load_dotenv()
 async def lifespan(app: FastAPI):
     global _categorias_disponibles
     _categorias_disponibles = cargar_categorias_desde_db()
-    # Se eliminó sync_mysql_to_chroma() de aquí porque ahora se hace localmente
     yield
 
 app = FastAPI(title="MonkeyMarket AI Service", version="2.0.0", lifespan=lifespan)
@@ -44,7 +43,8 @@ app.add_middleware(
 # ============================================================
 # CLIENTE DE IA (GEMINI)
 # ============================================================
-# ⚠️ ADVERTENCIA: Esta llave está expuesta. Te recomiendo cambiarla a os.getenv("GOOGLE_API_KEY")
+# ⚠️ Recuerda borrar esta llave expuesta de aquí y pasarla a las variables 
+# de entorno de Railway (GOOGLE_API_KEY) en cuanto termines tus pruebas.
 google_api_key = os.getenv("GOOGLE_API_KEY")
 if not google_api_key:
     print("⚠️  GOOGLE_API_KEY no encontrada")
@@ -200,8 +200,8 @@ RESPONDE ÚNICAMENTE CON ESTE JSON (sin backticks, sin markdown, sin explicacion
             model='gemini-2.5-flash',
             contents=prompt,
         )
-        raw      = response.text.strip().replace("```json", "").replace("```", "").strip()
-        raw = raw.replace("\n", "\\n").replace("\r", "")
+        # 🚀 SOLUCIÓN APLICADA: Parseo limpio sin reemplazar los \n
+        raw = response.text.strip().replace("```json", "").replace("```", "").strip()
         resultado = json.loads(raw, strict=False)
 
         nombres_validos = {cat["nombre"] for cat in categorias}
@@ -402,8 +402,8 @@ REGLAS INFALIBLES:
                 model='gemini-2.5-flash',
                 contents=prompt_redactor,
             )
-            raw    = resp.text.strip().replace("```json", "").replace("```", "").strip()
-            raw = raw.replace("\n", "\\n").replace("\r", "")
+            # 🚀 SOLUCIÓN APLICADA: Parseo limpio sin reemplazar los \n
+            raw = resp.text.strip().replace("```json", "").replace("```", "").strip()
             parsed = json.loads(raw, strict=False)
             
             action     = parsed.get("action", "RECOMMENDATION")
