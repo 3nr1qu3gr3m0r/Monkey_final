@@ -5,3 +5,4 @@ google-genai
 python-dotenv==1.0.0
 numpy<2.0.0
 sentence-transformers
+mysql-connector-python
