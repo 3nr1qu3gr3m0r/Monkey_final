@@ -57,7 +57,6 @@ DB_PATH = Path(__file__).parent / "chroma_db"
 chroma_client = chromadb.PersistentClient(path=str(DB_PATH))
 COLLECTION_NAME = "monkeymarket_catalog"
 
-# Lazy Loading del modelo para que Railway no se caiga al arrancar
 embedder = None
 def get_embedder():
     global embedder
@@ -108,9 +107,6 @@ def get_db_connection():
         database=os.getenv("DB_NAME", "monkey_market")
     )
 
-# ============================================================
-# CARGA DE CATÁLOGO DE CATEGORÍAS DESDE MYSQL
-# ============================================================
 def cargar_categorias_desde_db() -> List[Dict]:
     try:
         conn = get_db_connection()
@@ -130,9 +126,6 @@ def cargar_categorias_desde_db() -> List[Dict]:
         print(f"❌ Error cargando categorías: {e}")
         return []
 
-# ============================================================
-# CLASIFICADOR INTELIGENTE CON GEMINI
-# ============================================================
 def clasificar_intencion_con_gemini(
     mensaje: str,
     historial: List[Message],
@@ -152,14 +145,12 @@ def clasificar_intencion_con_gemini(
     ])
 
     historial_str = "\n".join([
-        f"{msg.role}: {msg.content}"
-        for msg in historial[-3:]
+        f"{msg.role}: {msg.content}" for msg in historial[-3:]
     ]) if historial else "Sin historial previo."
 
     prompt = f"""
 Eres un clasificador de intenciones para un marketplace de eventos en México.
 Tu ÚNICA tarea es analizar el mensaje y devolver un JSON estructurado.
-NO generes texto adicional, solo el JSON.
 
 CATÁLOGO DE CATEGORÍAS DISPONIBLES:
 {catalogo_texto}
@@ -171,22 +162,18 @@ MENSAJE ACTUAL DEL USUARIO:
 "{mensaje}"
 
 INSTRUCCIONES:
-1. Corrige mentalmente los errores ortográficos antes de clasificar.
-   Ejemplos: "mussica" -> música, "dkoracion" -> decoración, "kiero" -> quiero.
-2. Identifica qué categorías del catálogo necesita el usuario (puede ser más de una).
-   Los nombres en "categorias_detectadas" deben ser EXACTAMENTE como aparecen en el catálogo.
-3. Detecta si hay una temática específica (super heroes, dinosaurios, boda, xv años,
-   Barbie, Star Wars, etc.). Si no hay temática, devuelve null.
-   Las temáticas son LIBRES, no tienen una lista fija: detecta cualquiera que el usuario mencione.
-4. Genera una "query_optimizada": el mensaje reescrito de forma clara para búsqueda semántica,
-   en español correcto, sin errores, máximo 20 palabras.
-5. "tiene_suficiente_contexto" es false SOLO si el mensaje es demasiado vago para inferir
-   cualquier intención (ej: "hola", "ayuda", "quiero algo bonito").
-   Si hay aunque sea un tipo de evento o servicio mencionado, es true.
+1. Corrige mentalmente los errores ortográficos.
+2. Identifica qué categorías del catálogo necesita el usuario.
+3. Detecta si hay una temática específica (super heroes, 15 años, boda, etc).
+4. Genera una "query_optimizada" de máximo 20 palabras.
+5. EXTREMADAMENTE IMPORTANTE: "tiene_suficiente_contexto" DEBE SER FALSE si el usuario solo menciona el evento pero NO dice qué busca rentar/comprar. 
+   - Ejemplo 1: "quiero hacer una fiesta de 15 años" -> FALSE (Falta saber si busca salón, vestido, comida).
+   - Ejemplo 2: "busco salón para mis 15 años" -> TRUE (Ya dijo que busca un salón).
+   - Ejemplo 3: "hola" -> FALSE.
 
-RESPONDE ÚNICAMENTE CON ESTE JSON (sin backticks, sin markdown, sin explicaciones):
+RESPONDE ÚNICAMENTE CON ESTE JSON:
 {{
-  "categorias_detectadas": ["nombre exacto de categoría 1", "nombre exacto de categoría 2"],
+  "categorias_detectadas": ["nombre exacto de categoría 1"],
   "tematica": "nombre de la temática o null",
   "query_optimizada": "query limpia para búsqueda semántica",
   "tiene_suficiente_contexto": true
@@ -211,7 +198,7 @@ RESPONDE ÚNICAMENTE CON ESTE JSON (sin backticks, sin markdown, sin explicacion
         return resultado
 
     except Exception as e:
-        print(f"⚠️  Error en clasificador Gemini: {e}. Usando fallback sin filtros.")
+        print(f"⚠️  Error en clasificador Gemini: {e}. Usando fallback.")
         return {
             "categorias_detectadas":     [],
             "tematica":                  None,
@@ -251,14 +238,15 @@ async def analyze_message(request: AnalyzeRequest):
             categorias=_categorias_disponibles,
         )
 
+        # 🚀 Si el contexto es FALSE, la IA preguntará qué necesitas
         if not clasificacion.get("tiene_suficiente_contexto", True):
+            # Gemini redacta la pregunta para que suene natural según el historial
+            prompt_pregunta = f"El usuario dijo: '{request.message}'. Pregúntale amigablemente QUÉ servicios o productos específicos está buscando para su evento. Sé breve y mexicano."
+            resp_pregunta = client_ai.models.generate_content(model='gemini-2.5-flash', contents=prompt_pregunta)
+            
             return AnalyzeResponse(
                 action="QUESTION",
-                content=(
-                    "¡Hola! Con gusto te ayudo a planear tu evento. "
-                    "¿Me puedes contar un poco más? Por ejemplo, "
-                    "¿qué tipo de celebración es y qué servicios necesitas?"
-                ),
+                content=resp_pregunta.text.strip(),
                 entities={"recommendations": []},
             )
 
@@ -275,98 +263,75 @@ async def analyze_message(request: AnalyzeRequest):
         seen_names: set = set()
 
         def procesar_resultados(search_results: dict, cat_label: str):
-            if cat_label not in grouped_by_category:
-                grouped_by_category[cat_label] = []
             if not search_results.get('metadatas') or not search_results['metadatas'][0]:
                 return
             for i, meta in enumerate(search_results['metadatas'][0]):
                 nombre = meta.get("nombre", "Sin nombre")
+                tipo = meta.get("tipo", "Producto")
+                
+                # 🚀 TRUCO: Agrupamos por Categoría + Tipo (Ej: Mobiliario_Producto vs Mobiliario_Servicio)
+                grupo_clave = f"{cat_label}_{tipo}"
+                
+                if grupo_clave not in grouped_by_category:
+                    grouped_by_category[grupo_clave] = []
+                    
                 if nombre not in seen_names:
                     seen_names.add(nombre)
-                    grouped_by_category[cat_label].append({
+                    grouped_by_category[grupo_clave].append({
                         "id":        search_results['ids'][0][i],
                         "nombre":    nombre,
                         "precio":    meta.get("precio", 0.0),
-                        "tipo":      meta.get("tipo", "Producto"),
+                        "tipo":      tipo,
                         "categoria": cat_label,
                     })
 
-        # 🚀 CAMBIO 1: Buscamos 30 resultados por consulta en lugar de 10/20 para tener más variedad
+        # 🚀 Buscamos 60 resultados para tener una gran piscina de donde sacar el mix
         if categorias_req:
             for cat in categorias_req:
                 if filtro_tema:
                     try:
-                        res = collection.query(
-                            query_embeddings=[query_embedding],
-                            n_results=30,
-                            where={"categoria": cat},
-                            where_document=filtro_tema,
-                        )
+                        res = collection.query(query_embeddings=[query_embedding], n_results=60, where={"categoria": cat}, where_document=filtro_tema)
                         procesar_resultados(res, cat)
                     except Exception:
                         pass
 
-                if len(grouped_by_category.get(cat, [])) < 3:
-                    res = collection.query(
-                        query_embeddings=[query_embedding],
-                        n_results=30,
-                        where={"categoria": cat},
-                    )
-                    procesar_resultados(res, cat)
+                res = collection.query(query_embeddings=[query_embedding], n_results=60, where={"categoria": cat})
+                procesar_resultados(res, cat)
         else:
-            kwargs: Dict[str, Any] = {
-                "query_embeddings": [query_embedding],
-                "n_results":        30,
-            }
+            kwargs: Dict[str, Any] = {"query_embeddings": [query_embedding], "n_results": 60}
             if filtro_tema:
                 kwargs["where_document"] = filtro_tema
             res = collection.query(**kwargs)
             procesar_resultados(res, "Varios")
 
-            if not grouped_by_category.get("Varios"):
-                res_fallback = collection.query(
-                    query_embeddings=[query_embedding],
-                    n_results=30,
-                )
+            if not grouped_by_category.get("Varios_Producto") and not grouped_by_category.get("Varios_Servicio"):
+                res_fallback = collection.query(query_embeddings=[query_embedding], n_results=60)
                 procesar_resultados(res_fallback, "Varios")
 
         unique_recommendations: List[Dict] = []
         context_texts: List[str] = []
         
-        # 🚀 CAMBIO 2: Aumentamos el máximo de tarjetas de 12 a 25
+        # 🚀 Aseguramos tus 25 tarjetas máximas
         TARJETAS_MAXIMAS = 25
 
-        while (
-            len(unique_recommendations) < TARJETAS_MAXIMAS
-            and any(grouped_by_category.values())
-        ):
-            for cat in list(grouped_by_category.keys()):
-                if grouped_by_category[cat] and len(unique_recommendations) < TARJETAS_MAXIMAS:
-                    item = grouped_by_category[cat].pop(0)
+        # 🚀 ROUND-ROBIN: Sacamos un producto, luego un servicio, luego un producto...
+        while len(unique_recommendations) < TARJETAS_MAXIMAS and any(grouped_by_category.values()):
+            for grupo_clave in list(grouped_by_category.keys()):
+                if grouped_by_category[grupo_clave] and len(unique_recommendations) < TARJETAS_MAXIMAS:
+                    item = grouped_by_category[grupo_clave].pop(0)
                     unique_recommendations.append(item)
-                    context_texts.append(
-                        f"- ID: {item['id']} | {item['nombre']} | Cat: {item['categoria']}"
-                    )
+                    context_texts.append(f"- ID: {item['id']} | {item['nombre']} | Tipo: {item['tipo']} | Cat: {item['categoria']}")
 
         if not unique_recommendations:
             return AnalyzeResponse(
                 action="QUESTION",
-                content=(
-                    "No encontré opciones exactas para eso en el catálogo. "
-                    "¿Quieres intentar con otra temática o tipo de servicio?"
-                ),
+                content="No encontré opciones exactas para eso en el catálogo. ¿Quieres intentar con otra temática o tipo de servicio?",
                 entities={"recommendations": []},
             )
 
         context_str  = "\n".join(context_texts)
-        history_str  = "\n".join([
-            f"{m.role}: {m.content}" for m in request.history[-6:]
-        ])
-        tematica_str = (
-            f'Temática detectada: "{tematica}"'
-            if tematica
-            else "Sin temática específica."
-        )
+        history_str  = "\n".join([f"{m.role}: {m.content}" for m in request.history[-6:]])
+        tematica_str = f'Temática detectada: "{tematica}"' if tematica else "Sin temática específica."
         cats_str = ", ".join(categorias_req) if categorias_req else "búsqueda abierta"
 
         prompt_redactor = f"""
@@ -388,11 +353,9 @@ MENSAJE DEL USUARIO:
 
 REGLAS INFALIBLES:
 1. NUNCA menciones nombres exactos de productos, IDs ni precios en tu mensaje.
-2. Si hay temática y algunos productos son genéricos, dile que los proveedores
-   los adaptarán y personalizarán para que hagan juego perfecto con su temática.
+2. Si hay temática, dile que tienes un paquete que incluye tanto **servicios como productos/recuerdos** que harán juego perfecto con su temática.
 3. Sé ASERTIVO: usa frases como "¡Aquí te va el paquete!" en vez de "¿Te muestro opciones?"
-4. Si tienes productos de varias categorías, menciona brevemente que armaste un paquete completo.
-5. Responde ÚNICAMENTE con este JSON (sin backticks, sin markdown):
+4. Responde ÚNICAMENTE con este JSON (sin backticks, sin markdown):
    {{"action": "RECOMMENDATION", "content": "tu mensaje amigable aquí"}}
 """
 
@@ -409,10 +372,7 @@ REGLAS INFALIBLES:
         except Exception as e:
             print(f"⚠️  Error en Gemini redactor: {e}")
             action     = "RECOMMENDATION"
-            ai_content = (
-                "¡Aquí tienes opciones perfectas para tu evento! "
-                "Las he seleccionado especialmente para ti."
-            )
+            ai_content = "¡Aquí tienes opciones de productos y servicios perfectas para tu evento!"
 
         final_response = AnalyzeResponse(
             action=action,
