@@ -43,8 +43,6 @@ app.add_middleware(
 # ============================================================
 # CLIENTE DE IA (GEMINI)
 # ============================================================
-# ⚠️ Recuerda borrar esta llave expuesta de aquí y pasarla a las variables 
-# de entorno de Railway (GOOGLE_API_KEY) en cuanto termines tus pruebas.
 google_api_key = os.getenv("GOOGLE_API_KEY")
 if not google_api_key:
     print("⚠️  GOOGLE_API_KEY no encontrada")
@@ -200,7 +198,6 @@ RESPONDE ÚNICAMENTE CON ESTE JSON (sin backticks, sin markdown, sin explicacion
             model='gemini-2.5-flash',
             contents=prompt,
         )
-        # 🚀 SOLUCIÓN APLICADA: Parseo limpio sin reemplazar los \n
         raw = response.text.strip().replace("```json", "").replace("```", "").strip()
         resultado = json.loads(raw, strict=False)
 
@@ -270,7 +267,6 @@ async def analyze_message(request: AnalyzeRequest):
         tematica        = clasificacion.get("tematica")
 
         collection      = chroma_client.get_or_create_collection(name=COLLECTION_NAME)
-        # Obtenemos el embedder de manera segura
         modelo_local    = get_embedder()
         query_embedding = modelo_local.encode(normalizar_texto(query_limpia)).tolist()
         filtro_tema     = {"$contains": tematica} if tematica else None
@@ -295,13 +291,14 @@ async def analyze_message(request: AnalyzeRequest):
                         "categoria": cat_label,
                     })
 
+        # 🚀 CAMBIO 1: Buscamos 30 resultados por consulta en lugar de 10/20 para tener más variedad
         if categorias_req:
             for cat in categorias_req:
                 if filtro_tema:
                     try:
                         res = collection.query(
                             query_embeddings=[query_embedding],
-                            n_results=10,
+                            n_results=30,
                             where={"categoria": cat},
                             where_document=filtro_tema,
                         )
@@ -312,14 +309,14 @@ async def analyze_message(request: AnalyzeRequest):
                 if len(grouped_by_category.get(cat, [])) < 3:
                     res = collection.query(
                         query_embeddings=[query_embedding],
-                        n_results=10,
+                        n_results=30,
                         where={"categoria": cat},
                     )
                     procesar_resultados(res, cat)
         else:
             kwargs: Dict[str, Any] = {
                 "query_embeddings": [query_embedding],
-                "n_results":        20,
+                "n_results":        30,
             }
             if filtro_tema:
                 kwargs["where_document"] = filtro_tema
@@ -329,13 +326,15 @@ async def analyze_message(request: AnalyzeRequest):
             if not grouped_by_category.get("Varios"):
                 res_fallback = collection.query(
                     query_embeddings=[query_embedding],
-                    n_results=20,
+                    n_results=30,
                 )
                 procesar_resultados(res_fallback, "Varios")
 
         unique_recommendations: List[Dict] = []
         context_texts: List[str] = []
-        TARJETAS_MAXIMAS = 12
+        
+        # 🚀 CAMBIO 2: Aumentamos el máximo de tarjetas de 12 a 25
+        TARJETAS_MAXIMAS = 25
 
         while (
             len(unique_recommendations) < TARJETAS_MAXIMAS
@@ -402,7 +401,6 @@ REGLAS INFALIBLES:
                 model='gemini-2.5-flash',
                 contents=prompt_redactor,
             )
-            # 🚀 SOLUCIÓN APLICADA: Parseo limpio sin reemplazar los \n
             raw = resp.text.strip().replace("```json", "").replace("```", "").strip()
             parsed = json.loads(raw, strict=False)
             
