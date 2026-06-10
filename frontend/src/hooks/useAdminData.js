@@ -1,8 +1,17 @@
-// hooks/useAdminData.js
 import { useState, useEffect, useCallback } from 'react';
 
 //const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
-const API_BASE = import.meta.env.VITE_BACKEND_URL || 'http://backend-production-c09d.up.railway.app'
+//const API_BASE = import.meta.env.VITE_BACKEND_URL || 'http://backend-production-c09d.up.railway.app'
+
+
+// 1. Obtenemos la URL base (ya sea de la variable o de tu respaldo)
+const RAW_BASE = import.meta.env.VITE_API_URL || 'https://backend-production-c09d.up.railway.app/api';
+
+// 2. Limpiamos cualquier diagonal extra al final si existiera
+const CLEAN_BASE = RAW_BASE.replace(/\/$/, '');
+
+// 3. Forzamos que SIEMPRE termine en /api
+export const API_BASE = CLEAN_BASE.endsWith('/api') ? CLEAN_BASE : `${CLEAN_BASE}/api`;
 
 /**
  * Hook genérico para cualquier endpoint del panel admin.
