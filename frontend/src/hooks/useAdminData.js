@@ -2,7 +2,7 @@
 import { useState, useEffect, useCallback } from 'react';
 
 //const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
-const API_BASE = import.meta.env.VITE_API_URL || 'http://backend-production-c09d.up.railway.app/api'
+const API_BASE = import.meta.env.VITE_BACKEND_URL || 'http://backend-production-c09d.up.railway.app'
 
 /**
  * Hook genérico para cualquier endpoint del panel admin.
