@@ -2,246 +2,282 @@ import os
 import json
 import random
 import time
+from datetime import datetime, timedelta
 
 # ==========================================
-# 1. TEMÁTICAS CATEGORIZADAS
+# 1. CONFIGURACIÓN DE USUARIOS
 # ==========================================
-TEMATICAS = {
-    "Infantil": [
-        "fiesta infantil Frozen", "fiesta infantil Super Héroes", "fiesta infantil Dinosaurios",
-        "fiesta infantil Peppa Pig", "fiesta infantil Minecraft", "fiesta infantil PAW Patrol",
-        "presentación de 3 años", "primera comunión niña", "primera comunión niño"
-    ],
-    "Boda": [
-        "boda clásica", "boda rústica", "boda en jardín", "boda en playa", "boda bohemia",
-        "aniversario de bodas", "despedida de soltera"
-    ],
-    "XV_Anos": [
-        "XV años princesa", "XV años viajera", "XV años moderna", "XV años artística"
-    ],
-    "General": [
-        "Halloween", "graduación", "cumpleaños adulto 30 años", "cumpleaños adulto 50 años",
-        "fiesta mexicana", "fiesta disco 70s", "fiesta neon", "evento corporativo"
-    ]
-}
-
-COLORES = ["blanco y dorado", "blanco y plateado", "rosa y oro rose", "azul rey", "negro y dorado", "multicolor neón", "tonos pastel", "temático"]
-
-TAMANIOS = [
-    ("íntimo",  15,  40, 0.70),
-    ("mediano", 50, 100, 1.00),
-    ("grande", 120, 200, 1.45),
-    ("masivo", 250, 500, 2.10),
+NOMBRES_CLIENTES = [
+    "Carlos Mendoza", "Valeria Rojas", "Miguel Ángel Soto", "Fernanda Ortiz", 
+    "Daniela Castillo", "Héctor Navarro", "Sofía Cervantes", "Alejandro Vega", 
+    "Paola Rangel", "Ricardo Montes"
 ]
 
-NOTAS_OPERATIVAS = [
-    "Se requiere acceso 2 horas antes para montaje.",
-    "El cliente debe asegurar conexión eléctrica.",
-    "Cancelaciones con 48 horas retienen el anticipo.",
-    "El servicio concluye a la hora contratada exacta."
+RESEÑAS_POSITIVAS = [
+    "¡Excelente! Todo llegó a tiempo y la calidad superó mis expectativas. Mis invitados quedaron fascinados.",
+    "Muy profesionales. La atención fue increíble y el día del evento no me preocupé por nada. 100% recomendados.",
+    "Primerísima calidad. Los acabados son hermosos y justo como se veían en las fotos.",
+    "Hicieron que nuestro evento fuera inolvidable. Cuidaron cada detalle. ¡Mil gracias!",
+    "Valió cada peso invertido. La puntualidad, la presentación y la amabilidad fueron impecables."
+]
+
+def gen_img(keywords, cantidad=2):
+    return [f"https://loremflickr.com/800/600/{keywords}?lock={random.randint(1, 10000)}" for _ in range(cantidad)]
+
+# ==========================================
+# 2. CATÁLOGO MASIVO (50 PRODUCTOS + 50 SERVICIOS)
+# ==========================================
+
+# Formato: (Título, Categoría, Precio Base, Keywords para Imagen)
+PRODUCTOS_DATA = [
+    # Animación y Batucada (10)
+    ("Paquete de Máscaras de Luchador (20pz)", "Decoración", 450, "mask,party"),
+    ("Sombreros Texanos Neón para Batucada (15pz)", "Decoración", 600, "hat,neon"),
+    ("Lentes LED Luminosos de Colores (50pz)", "Decoración", 750, "led,glasses"),
+    ("Corbatas y Moños Luminosos (20pz)", "Decoración", 500, "bowtie,neon"),
+    ("Antifaces Venecianos Elegantes (30pz)", "Decoración", 850, "venetian,mask"),
+    ("Tubos de Espuma LED para Concierto (50pz)", "Decoración", 650, "glowstick,party"),
+    ("Paquete de Mechudos Metálicos (40pz)", "Decoración", 300, "pompons,party"),
+    ("Globos Salchicha para Moldear (100pz)", "Decoración", 150, "balloons,colors"),
+    ("Diademas de Luces (Orejas y Cuernos) (30pz)", "Decoración", 450, "headband,led"),
+    ("Cañones de Confeti Metálico Grandes (10pz)", "Decoración", 800, "confetti,celebration"),
+    
+    # Decoración Física (10)
+    ("Kit Arco de Globos Orgánico (150 globos)", "Decoración", 350, "balloons,arch"),
+    ("Centros de Mesa Florales Artificiales (10pz)", "Decoración", 1200, "centerpiece,flowers"),
+    ("Letras Gigantes MDF 'LOVE' (Venta)", "Decoración", 2500, "letters,love"),
+    ("Cortina de Luces LED Cascada (3x3m)", "Decoración", 400, "fairylights,decor"),
+    ("Caminos de Mesa de Lentejuela (10pz)", "Decoración", 850, "tablecloth,sequin"),
+    ("Velas Flotantes para Centros de Mesa (50pz)", "Decoración", 250, "candles,water"),
+    ("Tanque de Helio Desechable con 30 Globos", "Decoración", 1100, "helium,balloons"),
+    ("Pizarra Vintage de Bienvenida con Caballete", "Decoración", 650, "chalkboard,welcome"),
+    ("Faroles de Papel Blancos (Linternas) (20pz)", "Decoración", 300, "paperlantern,decor"),
+    ("Rollo de Alfombra Roja para Eventos (10m)", "Decoración", 900, "redcarpet,event"),
+    
+    # Repostería y Dulces (10)
+    ("Pastel de Fondant Temático (3 Pisos)", "Repostería y Dulces", 1500, "fondant,cake"),
+    ("Caja de Cupcakes Personalizados (24pz)", "Repostería y Dulces", 650, "cupcakes,dessert"),
+    ("Galletas de Mantequilla Decoradas (50pz)", "Repostería y Dulces", 700, "cookies,decorated"),
+    ("Torre de Macarons Franceses (40pz)", "Repostería y Dulces", 1200, "macarons,tower"),
+    ("Fuente de Chocolate con Insumos", "Repostería y Dulces", 1800, "chocolatefountain"),
+    ("Kit Dulces a Granel para Mesa de Postres", "Repostería y Dulces", 950, "candytable,sweets"),
+    ("Paletas de Hielo Artesanales (50pz)", "Repostería y Dulces", 800, "popsicles,ice"),
+    ("Bolsas de Algodón de Azúcar (40pz)", "Repostería y Dulces", 450, "cottoncandy"),
+    ("Manzanas Cubiertas de Chamoy y Tamarindo (20pz)", "Repostería y Dulces", 550, "apples,chamoy"),
+    ("Muro de Donas Glaseadas con Soporte (30pz)", "Repostería y Dulces", 850, "donuts,wall"),
+    
+    # Recuerdos y Souvenirs (10)
+    ("Termos Personalizados Grabados (20pz)", "Recuerdos y Souvenirs", 1800, "thermos,gift"),
+    ("Pantuflas Blancas Bordadas (50 pares)", "Recuerdos y Souvenirs", 1500, "slippers,wedding"),
+    ("Mini Suculentas en Maceta (30pz)", "Recuerdos y Souvenirs", 1200, "succulents,wedding"),
+    ("Llaveros de Madera Grabados (50pz)", "Recuerdos y Souvenirs", 800, "keychain,wood"),
+    ("Abanicos de Bambú y Tela (50pz)", "Recuerdos y Souvenirs", 900, "fans,bamboo"),
+    ("Sandalias para Descanso en Pista (40 pares)", "Recuerdos y Souvenirs", 1400, "sandals,party"),
+    ("Cajitas de Acrílico con Almendras (50pz)", "Recuerdos y Souvenirs", 600, "almonds,box"),
+    ("Botellitas de Mezcal Personalizadas (20pz)", "Recuerdos y Souvenirs", 1600, "mezcal,bottle"),
+    ("Jabones Artesanales Aromáticos (40pz)", "Recuerdos y Souvenirs", 750, "soap,handmade"),
+    ("Kit Anti-Cruda / Recovery Bags (50pz)", "Recuerdos y Souvenirs", 2200, "survival,kit"),
+    
+    # Varios y Utilería (10)
+    ("Platos Pasteleros Elegantes Desechables (100pz)", "Alimentos y Bebidas", 350, "plates,elegant"),
+    ("Copas de Acrílico tipo Cristal (50pz)", "Alimentos y Bebidas", 600, "glasses,acrylic"),
+    ("Servilletas de Tela Premium (50pz)", "Decoración", 750, "napkins,cloth"),
+    ("Kits de Props y Letreros para Fotos (30pz)", "Fotografía y Video", 250, "photoprops,signs"),
+    ("Libro de Firmas de Madera Personalizado", "Decoración", 450, "guestbook,wood"),
+    ("Burbujeros Automáticos para Ceremonia (2pz)", "Decoración", 600, "bubbles,machine"),
+    ("Bengalas de Humo para Sesión de Fotos (5pz)", "Fotografía y Video", 300, "smokebomb,photo"),
+    ("Letreros de Madera 'Sr.' y 'Sra.' para Sillas", "Decoración", 200, "mrandmrs,signs"),
+    ("Caja Buzón para Sobres de Dinero", "Decoración", 550, "mailbox,envelope"),
+    ("Guirnaldas de Papel Picado Personalizadas (10m)", "Decoración", 180, "papelpicado,mexican")
+]
+
+SERVICIOS_DATA = [
+    # Audio e Iluminación (10)
+    ("Servicio de DJ Versátil Profesional (5 Hrs)", "Audio e Iluminación", 4500, "dj,party"),
+    ("DJ Pro con Pantallas LED y Animador", "Audio e Iluminación", 8000, "dj,ledscreen"),
+    ("Renta de Pista de Cristal Iluminada (5x5m)", "Audio e Iluminación", 6500, "dancefloor,glass"),
+    ("Renta de Audio Lineal Alta Fidelidad", "Audio e Iluminación", 3500, "speakers,linearray"),
+    ("Iluminación Arquitectónica para Jardines", "Audio e Iluminación", 2500, "uplighting,garden"),
+    ("Renta de Pista de Madera Vintage Pintada a Mano", "Mobiliario", 5500, "dancefloor,wood"),
+    ("Servicio de Karaoke a Domicilio con Pantalla", "Entretenimiento", 2000, "karaoke,screen"),
+    ("Renta de Proyector y Pantalla Gigante", "Fotografía y Video", 1500, "projector,screen"),
+    ("Pista Infinita LED 3D (4x4m)", "Audio e Iluminación", 8500, "infinity,dancefloor"),
+    ("Sonorización Acústica para Ceremonia Religiosa", "Audio e Iluminación", 1800, "ceremony,audio"),
+    
+    # Fotografía y Video (10)
+    ("Cobertura Fotográfica Completa (8 Hrs)", "Fotografía y Video", 6000, "wedding,photographer"),
+    ("Video Documental en 4K UHD", "Fotografía y Video", 8500, "videographer,wedding"),
+    ("Sesión Fotográfica Casual Pre-Evento", "Fotografía y Video", 2500, "casual,photoshoot"),
+    ("Cabina Fotográfica con Impresión Ilimitada", "Fotografía y Video", 3500, "photobooth,print"),
+    ("Plataforma Cabina de Fotos 360", "Fotografía y Video", 4500, "360booth,party"),
+    ("Cobertura con Dron para Tomas Aéreas", "Fotografía y Video", 3000, "drone,wedding"),
+    ("Fotografía Profesional para Bautizos", "Fotografía y Video", 2200, "baptism,photo"),
+    ("Creación de Photobook Impreso Premium", "Fotografía y Video", 2800, "photobook,album"),
+    ("Video Highlight Trailer para Redes Sociales", "Fotografía y Video", 1500, "video,highlight"),
+    ("Renta de Cámaras Polaroid con 50 Cartuchos", "Fotografía y Video", 1800, "polaroid,camera"),
+    
+    # Entretenimiento (10)
+    ("Show Cómico de Payasos y Animación Infantil", "Entretenimiento", 1800, "clown,kids"),
+    ("Espectáculo de Magia de Cerca e Ilusionismo", "Entretenimiento", 3500, "magician,tricks"),
+    ("Show Robot LED con Disparador de CO2", "Entretenimiento", 5500, "ledrobot,co2"),
+    ("Banda Sinaloense en Vivo (2 Hrs)", "Entretenimiento", 9000, "band,music"),
+    ("Grupo Versátil con Bailarines", "Entretenimiento", 15000, "liveband,party"),
+    ("Mariachi Profesional para Eventos (1 Hr)", "Entretenimiento", 3500, "mariachi,music"),
+    ("Zanqueros y Arlequines para Batucada", "Entretenimiento", 2500, "stiltwalker,party"),
+    ("Servicio de Pintacaritas y Maquillaje Fantasía", "Entretenimiento", 1200, "facepainting,kids"),
+    ("Espectáculo de Fuego y Malabares", "Entretenimiento", 4500, "fireshow,juggling"),
+    ("Show de Imitador de Artista Famoso", "Entretenimiento", 3800, "impersonator,show"),
+    
+    # Alimentos y Bebidas (10)
+    ("Banquete Formal a 3 Tiempos (por 50 pax)", "Alimentos y Bebidas", 12500, "banquet,elegant"),
+    ("Taquiza Tradicional de Guisados (por 50 pax)", "Alimentos y Bebidas", 4500, "tacos,catering"),
+    ("Barra Libre de Coctelería Profesional", "Alimentos y Bebidas", 6500, "cocktails,bar"),
+    ("Carrito de Shots Animados para Pista", "Alimentos y Bebidas", 2500, "shots,party"),
+    ("Trompo de Pastor al Pastor a Domicilio", "Alimentos y Bebidas", 3500, "tacos,pastor"),
+    ("Mesa de Quesos, Carnes Frías y Tapas", "Alimentos y Bebidas", 4000, "charcuterie,cheese"),
+    ("Catering Vegano y Menús Alternativos", "Alimentos y Bebidas", 5500, "vegan,catering"),
+    ("Barra de Cafés de Especialidad y Crepas", "Alimentos y Bebidas", 3000, "coffee,crepes"),
+    ("Menú Infantil (Hamburguesas/Nuggets)", "Alimentos y Bebidas", 2000, "kidsmeal,burger"),
+    ("Parrillada Argentina con Cortes Clásicos", "Alimentos y Bebidas", 8500, "bbq,grill"),
+    
+    # Recintos, Mobiliario y Staff (10)
+    ("Renta de Jardín Exclusivo para Eventos", "Recintos y Salones", 15000, "garden,venue"),
+    ("Salón Cerrado con Aire Acondicionado", "Recintos y Salones", 18000, "venue,indoor"),
+    ("Renta de Carpa Elegante con Plafón", "Mobiliario", 6000, "tent,wedding"),
+    ("Salas Lounge Blancas (Capacidad 8 pax)", "Mobiliario", 800, "lounge,furniture"),
+    ("Mesas Imperiales de Madera Parota", "Mobiliario", 1200, "woodentable,elegant"),
+    ("Sillas Tiffany Originales (10pz)", "Mobiliario", 300, "tiffanychair,wedding"),
+    ("Sillas Avant Garde Plegables (10pz)", "Mobiliario", 250, "avantgarde,chair"),
+    ("Servicio de Meseros Profesionales (1 Turno)", "Personal y Staff", 800, "waiter,staff"),
+    ("Seguridad Privada y Control de Accesos", "Personal y Staff", 1500, "security,event"),
+    ("Servicio de Valet Parking Asegurado", "Personal y Staff", 3500, "valet,parking")
 ]
 
 # ==========================================
-# 2. GENERADOR DINÁMICO DE IMÁGENES (LoremFlickr)
+# 3. MOTOR DE GENERACIÓN DE DESCRIPCIONES
 # ==========================================
-# Mapeamos cada categoría con palabras clave en inglés para obtener mejores resultados
-KEYWORDS_IMAGENES = {
-    "Audio e Iluminación": "dj,concert,lighting",
-    "Mobiliario": "furniture,chairs,event",
-    "Decoración": "decor,party,flowers",
-    "Alimentos y Bebidas": "catering,buffet,drinks",
-    "Repostería y Dulces": "cake,dessert,pastry",
-    "Fotografía y Video": "photographer,camera,drone",
-    "Entretenimiento": "show,circus,party",
-    "Recintos y Salones": "venue,hacienda,garden",
-    "Personal y Staff": "waiter,staff,bartender",
-    "Recuerdos y Souvenirs": "souvenir,gift,wedding",
-    "Transporte y Logística": "limousine,classiccar,transport"
-}
-
-def generar_urls_dinamicas(categoria, cantidad=3):
-    """
-    Genera URLs únicas de LoremFlickr basadas en la categoría.
-    El parámetro 'lock' asegura que cada imagen sea diferente pero persistente.
-    """
-    keywords = KEYWORDS_IMAGENES.get(categoria, "party,event")
-    urls = []
-    for _ in range(cantidad):
-        # Generamos un ID aleatorio del 1 al 10000 para garantizar variedad infinita
-        lock_id = random.randint(1, 10000)
-        # LoremFlickr format: https://loremflickr.com/width/height/keywords?lock=id
-        url = f"https://loremflickr.com/800/600/{keywords}?lock={lock_id}"
-        urls.append(url)
-    return urls
-
-# ==========================================
-# 3. CATÁLOGOS BASE
-# ==========================================
-PRODUCTOS_BASE = [
-    ("Kit de Globos Temáticos", "Decoración", 350, 50, ["Infantil", "General", "XV_Anos"]),
-    ("Paquete de Gorros de Fiesta (50 pz)", "Decoración", 150, 100, ["Infantil", "General"]),
-    ("Antifaces Temáticos (20 pz)", "Decoración", 120, 100, ["Infantil", "General", "XV_Anos"]),
-    ("Letrero Neón Personalizable (Venta)", "Decoración", 2500, 10, ["Boda", "XV_Anos", "General"]),
-    ("Kit de Platos y Vasos Desechables", "Alimentos y Bebidas", 250, 80, ["Infantil", "General"]),
-    ("Llaveros Grabados de Recuerdo (50 pz)", "Recuerdos y Souvenirs", 800, 20, ["Boda", "XV_Anos", "Infantil"]),
-    ("Suculentas en Maceta Personalizada", "Recuerdos y Souvenirs", 1200, 15, ["Boda", "XV_Anos"]),
-    ("Pantuflas para Invitados (50 pares)", "Recuerdos y Souvenirs", 1500, 30, ["Boda", "XV_Anos"]),
-    ("Termos Personalizados (20 pz)", "Recuerdos y Souvenirs", 1800, 25, ["Boda", "XV_Anos", "General"]),
-    ("Kit Anti-Cruda / Recovery Kit (20 pz)", "Recuerdos y Souvenirs", 950, 30, ["Boda", "XV_Anos", "General"]),
-    ("Vela Chispera para Pastel", "Repostería y Dulces", 45, 200, ["Infantil", "Boda", "XV_Anos", "General"]),
-    ("Bolsitas para Dulces Vacías (50 pz)", "Repostería y Dulces", 90, 150, ["Infantil"]),
-    ("Caja de Cupcakes Decorados (12 pz)", "Repostería y Dulces", 400, 20, ["Infantil", "Boda", "XV_Anos", "General"]),
-    ("Pastel de Fondant (30 personas)", "Repostería y Dulces", 1200, 10, ["Infantil", "Boda", "XV_Anos", "General"]),
-    ("Kit de Dulces a Granel para Mesa", "Repostería y Dulces", 850, 15, ["Infantil", "Boda", "XV_Anos", "General"])
-]
-
-SERVICIOS_BASE = [
-    ("Servicio de DJ Profesional", "Audio e Iluminación", 4500, 1, ["Boda", "XV_Anos", "General"]),
-    ("Renta de Equipo de Sonido (Bocinas)", "Audio e Iluminación", 1500, 1, ["Infantil", "General"]),
-    ("Iluminación Arquitectónica y Pista", "Audio e Iluminación", 3000, 1, ["Boda", "XV_Anos"]),
-    ("Renta de Sala Lounge (8 personas)", "Mobiliario", 800, 1, ["Boda", "XV_Anos", "General"]),
-    ("Renta de Sillas Tiffany y Mesas", "Mobiliario", 1200, 1, ["Boda", "XV_Anos", "General"]),
-    ("Renta de Sillas Plegables y Tablón", "Mobiliario", 400, 1, ["Infantil", "General"]),
-    ("Banquete a 3 Tiempos", "Alimentos y Bebidas", 12000, 1, ["Boda", "XV_Anos"]),
-    ("Taquiza Tradicional con Guisados", "Alimentos y Bebidas", 4500, 1, ["Infantil", "General", "XV_Anos"]),
-    ("Barra Libre de Coctelería", "Alimentos y Bebidas", 6500, 1, ["Boda", "XV_Anos", "General"]),
-    ("Cobertura Fotográfica Completa", "Fotografía y Video", 6000, 1, ["Boda", "XV_Anos"]),
-    ("Cabina de Fotos 360", "Fotografía y Video", 3500, 1, ["Boda", "XV_Anos", "General"]),
-    ("Sesión Fotográfica Familiar", "Fotografía y Video", 2000, 1, ["Infantil", "General"]),
-    ("Show de Payaso y Animación", "Entretenimiento", 1800, 1, ["Infantil"]),
-    ("Renta de Inflable Gigante", "Entretenimiento", 1200, 1, ["Infantil"]),
-    ("Mago Ilusionista", "Entretenimiento", 3500, 1, ["Infantil", "General"]),
-    ("Banda de Rock/Versátil en Vivo", "Entretenimiento", 8000, 1, ["General", "Boda"]),
-    ("Renta de Jardín para Eventos", "Recintos y Salones", 15000, 1, ["Boda", "XV_Anos", "General"]),
-    ("Renta de Salón Infantil con Juegos", "Recintos y Salones", 8000, 1, ["Infantil"]),
-    ("Hacienda Colonial (Renta 8 Hrs)", "Recintos y Salones", 25000, 1, ["Boda"]),
-    ("Servicio de Meseros Especializados", "Personal y Staff", 2500, 1, ["Boda", "XV_Anos", "General"]),
-    ("Seguridad Privada para Eventos", "Personal y Staff", 3000, 1, ["Boda", "XV_Anos", "General"]),
-    ("Staff de Limpieza Durante Evento", "Personal y Staff", 1500, 1, ["Boda", "XV_Anos", "General", "Infantil"]),
-    ("Renta de Auto Clásico con Chofer", "Transporte y Logística", 4500, 1, ["Boda", "XV_Anos"]),
-    ("Transporte Van para Invitados", "Transporte y Logística", 3500, 1, ["Boda", "General", "XV_Anos"])
-]
-
-# ==========================================
-# 4. CONFIGURACIÓN BD
-# ==========================================
-CATEGORIAS_SQL = [
-    (1, "Mobiliario", "Mesas, sillas, lounge, salas, muebles para eventos"),
-    (2, "Audio e Iluminación", "DJ, bocinas, sonido, luces, iluminación para eventos"),
-    (3, "Decoración", "Flores, globos, arreglos, centros de mesa, ambientación"),
-    (4, "Alimentos y Bebidas", "Catering, taquizas, banquetes, bebidas, barras"),
-    (5, "Fotografía y Video", "Fotógrafos, videógrafos, cabinas de fotos, drones"),
-    (6, "Entretenimiento", "Payasos, magos, animadores, shows, inflables"),
-    (7, "Recintos y Salones", "Salones, jardines, haciendas, terrazas"),
-    (8, "Personal y Staff", "Meseros, hostess, seguridad, limpieza, valet parking"),
-    (9, "Repostería y Dulces", "Pasteles, mesas de postres, dulces, cupcakes"),
-    (10, "Recuerdos y Souvenirs", "Recuerdos, invitaciones, pantuflas, termos"),
-    (11, "Transporte y Logística", "Renta de autos, transporte de invitados, fletes")
-]
-
-PROVEEDORES_CONFIG = {
-    1: {"nombre": "Sonido Dinamita MX", "tipo": "servicios", "filtro_cat": "Audio e Iluminación"},
-    2: {"nombre": "Lounge Conceptos", "tipo": "servicios", "filtro_cat": "Mobiliario"},
-    3: {"nombre": "Lente Creativo Foto", "tipo": "servicios", "filtro_cat": "Fotografía y Video"},
-    4: {"nombre": "Jardines del Edén", "tipo": "servicios", "filtro_cat": "Recintos y Salones"},
-    5: {"nombre": "Staff de Excelencia MX", "tipo": "servicios", "filtro_cat": "Personal y Staff"},
-    6: {"nombre": "Choferes VIP", "tipo": "servicios", "filtro_cat": "Transporte y Logística"},
-    7: {"nombre": "Detalles y Recuerdos Mágicos", "tipo": "productos", "filtro_cat": "Recuerdos y Souvenirs"},
-    8: {"nombre": "Dulce Bocado Pastelería", "tipo": "productos", "filtro_cat": "Repostería y Dulces"},
-    9: {"nombre": "Banquetes La Mexicana", "tipo": "ambos", "filtro_cat": "Alimentos y Bebidas"},
-    10: {"nombre": "Eventos Completos Pro", "tipo": "ambos", "filtro_cat": "All"}
-}
+def generar_descripcion_detallada(titulo, tipo):
+    """Crea párrafos largos y profesionales adaptados dinámicamente al título."""
+    if tipo == "producto":
+        return (f"Descubre la mejor calidad con nuestro {titulo}. Diseñado meticulosamente para elevar "
+                f"el nivel de tu evento, este artículo destaca por sus materiales premium y su durabilidad garantizada. "
+                f"Ideal tanto para eventos diurnos como nocturnos, se adapta perfectamente a diversas temáticas. "
+                f"El paquete viene perfectamente sellado y revisado bajo estrictos controles de calidad para que no "
+                f"tengas ningún contratiempo el día de tu celebración. Además, su diseño ergonómico y visualmente "
+                f"atractivo asegura que tus invitados tengan la mejor experiencia posible, convirtiendo un simple detalle "
+                f"en un recuerdo inolvidable. Aprovecha este producto estrella que se ha convertido en el favorito de "
+                f"los organizadores de eventos más exigentes.")
+    else:
+        return (f"Contrata profesionalismo absoluto con nuestro {titulo}. Entendemos que tu evento es irrepetible, "
+                f"por eso ofrecemos una ejecución impecable desde el primer minuto. Nuestro personal cuenta con años "
+                f"de experiencia en la industria y se presenta debidamente uniformado, capacitado y con excelente actitud "
+                f"de servicio. Este paquete incluye toda la logística previa, montaje, operación durante las horas "
+                f"contratadas y desmontaje rápido y limpio. Trabajamos exclusivamente con equipos y materiales de vanguardia "
+                f"para evitar cualquier falla técnica. Nos adaptamos a los tiempos del protocolo de tu fiesta para asegurar "
+                f"que fluya con naturalidad. Déjalo en manos de expertos y dedícate únicamente a disfrutar tu gran día.")
 
 def escape_sql(text):
-    if not isinstance(text, str):
-        return str(text)
+    if not isinstance(text, str): return str(text)
     return text.replace("'", "\\'")
 
-def expandir_item(base_item, es_servicio):
-    nombre, categoria, precio_base, stock_base, tipos_compatibles = base_item
-    
-    tipo_elegido = random.choice(tipos_compatibles)
-    tematica = random.choice(TEMATICAS[tipo_elegido])
-    color = random.choice(COLORES)
-    tam_nombre, tam_min, tam_max, tam_factor = random.choice(TAMANIOS)
-    
-    precio_final = round(precio_base * tam_factor * random.uniform(0.85, 1.25), 2)
-    cualidad = random.choice(["Premium", "Clásico", "Económico", "Deluxe"])
-    titulo = f"{nombre} {cualidad} - {tematica.title()}"
-    
-    if es_servicio:
-        descripcion = f"Servicio profesional de {nombre.lower()}. Ideal para tu {tematica}. Capacidad para {tam_min} a {tam_max} personas. Logística garantizada."
-        stock = 1
-        datos_agenda = {"duracion_horas": random.choice([2, 4, 5, 8]), "notas": random.choice(NOTAS_OPERATIVAS)}
-    else:
-        descripcion = f"Excelente {nombre.lower()} con diseño para {tematica}. Colores: {color}. Artículo de alta calidad."
-        stock = random.randint(10, stock_base * 3)
-        datos_agenda = None
-        
-    # Generamos de 2 a 4 URLs únicas para este producto específico basadas en su categoría
-    num_imagenes = random.randint(2, 4)
-    imagenes_json = generar_urls_dinamicas(categoria, num_imagenes)
-        
-    return {
-        "titulo": escape_sql(titulo),
-        "descripcion": escape_sql(descripcion),
-        "precio": precio_final,
-        "stock": stock,
-        "imagenes": json.dumps(imagenes_json, ensure_ascii=False).replace("'", "\\'"),
-        "datos_agenda": json.dumps(datos_agenda, ensure_ascii=False).replace("'", "\\'") if datos_agenda else None,
-        "categoria": escape_sql(categoria)
-    }
-
+# ==========================================
+# 4. SCRIPT PRINCIPAL SQL
+# ==========================================
 def main():
-    OUTPUT_FILE = "monkey_market_seed_loremflickr.sql"
-    ITEMS_A_GENERAR_POR_PROV = 500
+    OUTPUT_FILE = "monkey_market_seed_100_items.sql"
     total_registros = 0
-    start_time = time.time()
     
-    print(f"🚀 Generando SQL de manera ultra rápida...")
+    print("🚀 Generando Base de Datos con 100 Artículos...")
     
     with open(OUTPUT_FILE, "w", encoding="utf-8") as f:
         f.write("SET FOREIGN_KEY_CHECKS = 0;\nSET autocommit = 0;\n\n")
         f.write("INSERT INTO configuracion_global (id, porcentaje_comision) VALUES (1, 10.00);\n")
         
-        for cat in CATEGORIAS_SQL:
-            f.write(f"INSERT INTO categorias (id, nombre, descripcion, activa) VALUES ({cat[0]}, '{escape_sql(cat[1])}', '{escape_sql(cat[2])}', 1);\n")
+        # Categorías
+        cats = [
+            "Audio e Iluminación", "Mobiliario", "Alimentos y Bebidas", "Fotografía y Video",
+            "Decoración", "Entretenimiento", "Recintos y Salones", "Personal y Staff",
+            "Repostería y Dulces", "Recuerdos y Souvenirs", "Transporte y Logística"
+        ]
+        for i, c in enumerate(cats, 1):
+            f.write(f"INSERT INTO categorias (id, nombre, descripcion, activa) VALUES ({i}, '{c}', 'Categoría del sistema', 1);\n")
             
-        f.write("INSERT INTO usuarios (id, rol, nombre, correo, contrasena_hash) VALUES (21, 'admin', 'Super Admin', 'admin@monkey.com', '$2b$10$Ew7PRDD6EJ1gCFL6NuEZo.pHGElcw4VLr7hv87syw1QVTw4KyYpwm');\n")
-        f.write("INSERT INTO usuarios (id, rol, nombre, correo, contrasena_hash) VALUES (22, 'cliente', 'Cliente Demo', 'cliente@monkey.com', '$2b$10$Ew7PRDD6EJ1gCFL6NuEZo.pHGElcw4VLr7hv87syw1QVTw4KyYpwm');\n")
+        # Usuarios (1 Admin, 5 Provs, 10 Clientes)
+        f.write("INSERT INTO usuarios (id, rol, nombre, correo, telefono, contrasena_hash) VALUES (1, 'admin', 'Admin Monkey', 'admin@monkey.com', '5550000001', '$2b$10$Ew7PRDD6EJ1gCFL6NuEZo.pHGElcw4VLr7hv87syw1QVTw4KyYpwm');\n")
         
-        for prov_id, prov_data in PROVEEDORES_CONFIG.items():
-            correo = f"prov{prov_id}@monkey.com"
-            f.write(f"INSERT INTO usuarios (id, rol, nombre, correo, contrasena_hash) VALUES ({prov_id}, 'proveedor', '{escape_sql(prov_data['nombre'])}', '{correo}', '$2b$10$Ew7PRDD6EJ1gCFL6NuEZo.pHGElcw4VLr7hv87syw1QVTw4KyYpwm');\n")
-            f.write(f"INSERT INTO billeteras (proveedor_id, saldo_actual) VALUES ({prov_id}, 0.00);\n")
+        for prov_id in range(2, 7):
+            f.write(f"INSERT INTO usuarios (id, rol, nombre, correo, telefono, contrasena_hash) VALUES ({prov_id}, 'proveedor', 'Proveedor {prov_id}', 'prov{prov_id}@monkey.com', '555111000{prov_id}', '$2b$10$Ew7PRDD6EJ1gCFL6NuEZo.pHGElcw4VLr7hv87syw1QVTw4KyYpwm');\n")
+            f.write(f"INSERT INTO billeteras (proveedor_id, saldo_actual, total_ganado) VALUES ({prov_id}, 0.00, 0.00);\n")
         
+        for cli_id in range(7, 17):
+            nombre = NOMBRES_CLIENTES[cli_id - 7]
+            f.write(f"INSERT INTO usuarios (id, rol, nombre, correo, telefono, contrasena_hash) VALUES ({cli_id}, 'cliente', '{escape_sql(nombre)}', 'cliente{cli_id}@monkey.com', '55522200{cli_id:02d}', '$2b$10$Ew7PRDD6EJ1gCFL6NuEZo.pHGElcw4VLr7hv87syw1QVTw4KyYpwm');\n")
+            f.write(f"INSERT INTO direcciones (usuario_id, calle_y_numero, colonia, ciudad, codigo_postal) VALUES ({cli_id}, 'Av. Principal {cli_id}', 'Centro', 'CDMX', '01000');\n")
+            
+        f.write("COMMIT;\n\n")
+
+        items_db = []
+        
+        # Insertar 50 Productos
+        for i, item in enumerate(PRODUCTOS_DATA, 1):
+            prov_asignado = random.randint(2, 6)
+            titulo, cat, precio, keys = item
+            desc = generar_descripcion_detallada(titulo, "producto")
+            imgs = json.dumps(gen_img(keys)).replace(chr(39), chr(92)+chr(39))
+            stock = random.randint(10, 100)
+            
+            f.write(f"INSERT INTO productos (id, proveedor_id, titulo, descripcion, precio, stock, imagenes, categoria) VALUES "
+                    f"({i}, {prov_asignado}, '{escape_sql(titulo)}', '{escape_sql(desc)}', {precio}, {stock}, '{imgs}', '{cat}');\n")
+            items_db.append({"id": i, "tipo": "producto", "precio": precio, "prov_id": prov_asignado})
+            
+        # Insertar 50 Servicios
+        for i, item in enumerate(SERVICIOS_DATA, 1):
+            prov_asignado = random.randint(2, 6)
+            titulo, cat, precio, keys = item
+            desc = generar_descripcion_detallada(titulo, "servicio")
+            imgs = json.dumps(gen_img(keys)).replace(chr(39), chr(92)+chr(39))
+            agenda = json.dumps({"duracion_horas": random.choice([2, 5, 8]), "anticipo_porcentaje": 50}).replace(chr(39), chr(92)+chr(39))
+            
+            f.write(f"INSERT INTO servicios (id, proveedor_id, titulo, descripcion, precio, datos_agenda, imagenes, categoria) VALUES "
+                    f"({i}, {prov_asignado}, '{escape_sql(titulo)}', '{escape_sql(desc)}', {precio}, '{agenda}', '{imgs}', '{cat}');\n")
+            items_db.append({"id": i, "tipo": "servicio", "precio": precio, "prov_id": prov_asignado})
+                
         f.write("COMMIT;\n\n")
         
-        for prov_id, prov_data in PROVEEDORES_CONFIG.items():
-            tipo_prov = prov_data["tipo"]
-            filtro = prov_data["filtro_cat"]
-            
-            if tipo_prov in ["productos", "ambos"]:
-                bases_validas = [b for b in PRODUCTOS_BASE if filtro == "All" or b[1] == filtro] or PRODUCTOS_BASE
-                for i in range(1, ITEMS_A_GENERAR_POR_PROV + 1):
-                    item = expandir_item(random.choice(bases_validas), es_servicio=False)
-                    f.write(f"INSERT INTO productos (proveedor_id, titulo, descripcion, precio, stock, imagenes, categoria) VALUES "
-                            f"({prov_id}, '{item['titulo']}', '{item['descripcion']}', {item['precio']}, {item['stock']}, '{item['imagenes']}', '{item['categoria']}');\n")
-                    total_registros += 1
-                    if i % 250 == 0: f.write("COMMIT;\n")
-                    
-            if tipo_prov in ["servicios", "ambos"]:
-                bases_validas = [b for b in SERVICIOS_BASE if filtro == "All" or b[1] == filtro] or SERVICIOS_BASE
-                for i in range(1, ITEMS_A_GENERAR_POR_PROV + 1):
-                    item = expandir_item(random.choice(bases_validas), es_servicio=True)
-                    f.write(f"INSERT INTO servicios (proveedor_id, titulo, descripcion, precio, datos_agenda, imagenes, categoria) VALUES "
-                            f"({prov_id}, '{item['titulo']}', '{item['descripcion']}', {item['precio']}, '{item['datos_agenda']}', '{item['imagenes']}', '{item['categoria']}');\n")
-                    total_registros += 1
-                    if i % 250 == 0: f.write("COMMIT;\n")
-                    
-        f.write("\nCOMMIT;\nSET FOREIGN_KEY_CHECKS = 1;\nSET autocommit = 1;\n")
+        # Simular Ventas (Cada uno de los 100 items tendrá entre 1 y 3 ventas garantizadas)
+        f.write("-- GENERACIÓN DE VENTAS Y RESEÑAS --\n")
+        pedido_id, detalle_id = 1, 1
+        billeteras = {2: 0, 3: 0, 4: 0, 5: 0, 6: 0}
         
-    print(f"\n✅ ¡Listo! Se generaron {total_registros:,} registros en {time.time() - start_time:.2f} segundos.")
+        for item in items_db:
+            compradores = random.sample(range(7, 17), random.randint(1, 3))
+            for cli_id in compradores:
+                f.write(f"INSERT INTO pedidos (id, cliente_id, monto_total, direccion_envio, estado, fecha_creacion) VALUES "
+                        f"({pedido_id}, {cli_id}, {item['precio']}, 'Domicilio Conocido', 'completado', '{datetime.now() - timedelta(days=random.randint(1, 30))}');\n")
+                
+                col = "producto_id" if item["tipo"] == "producto" else "servicio_id"
+                comision = round(item['precio'] * 0.10, 2)
+                f.write(f"INSERT INTO detalles_pedido (id, pedido_id, {col}, cantidad, precio_unitario_historico, comision_historica, estado_operativo) VALUES "
+                        f"({detalle_id}, {pedido_id}, {item['id']}, 1, {item['precio']}, {comision}, 'entregado');\n")
+                
+                billeteras[item["prov_id"]] += (item['precio'] - comision)
+                calificacion = random.choice([4, 5])
+                f.write(f"INSERT INTO valoraciones (detalle_pedido_id, cliente_id, calificacion, comentario) VALUES "
+                        f"({detalle_id}, {cli_id}, {calificacion}, '{random.choice(RESEÑAS_POSITIVAS)}');\n")
+                
+                pedido_id += 1
+                detalle_id += 1
+                total_registros += 4
+                
+        f.write("COMMIT;\n\n")
+        
+        # Actualizar Billeteras
+        for prov_id, monto in billeteras.items():
+            f.write(f"UPDATE billeteras SET saldo_actual = {monto}, total_ganado = {monto} WHERE proveedor_id = {prov_id};\n")
+
+        f.write("COMMIT;\nSET FOREIGN_KEY_CHECKS = 1;\nSET autocommit = 1;\n")
+        
+    print(f"✅ ¡Éxito! Base de datos de 100 Artículos generada correctamente.")
 
 if __name__ == "__main__":
     main()

@@ -238,8 +238,39 @@ function AppC({ user, carrito, setCarrito, agregarAlCarrito, ajustarCantidad }) 
     }
     setCargandoBusqueda(true); 
     try {
-        const response = await apiClient.get(`/api/search?q=${termino}`);
-        setResultados(response.data);
+        const response = await apiClient.get(`/search?q=${termino}`);
+        
+        // 🚀 NORMALIZACIÓN MAGNÍFICA
+        // Transformamos los resultados de la base de datos para que ItemCardAppC los entienda
+        const resultadosNormalizados = response.data.map(item => {
+          
+          // Parseamos el JSON de imágenes si viene como string
+          let fotosPaseadas = [];
+          if (typeof item.imagenes === 'string') {
+              try {
+                  fotosPaseadas = JSON.parse(item.imagenes);
+              } catch (e) {
+                  fotosPaseadas = [];
+              }
+          } else if (Array.isArray(item.imagenes)) {
+              fotosPaseadas = item.imagenes;
+          }
+
+          return {
+            id: `${item.tipo === 'producto' ? 'prod' : 'serv'}_${item.id}`,
+            dbId: item.id,
+            nombre: item.titulo, // 💡 Renombramos 'titulo' a 'nombre'
+            descripcion: item.descripcion,
+            precio: Number(item.precio),
+            tipo: item.tipo === 'producto' ? 'Producto' : 'Servicio',
+            categoria: item.categoria || 'Varios',
+            fotos: fotosPaseadas, // 💡 Renombramos 'imagenes' a 'fotos'
+            vendor: item.nombre_proveedor || 'Proveedor Verificado'
+          };
+        });
+
+        setResultados(resultadosNormalizados);
+        
     } catch (error) {
         console.error("Error al buscar:", error);
     } finally {
