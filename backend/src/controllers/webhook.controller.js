@@ -33,6 +33,7 @@ const receiveWebhook = async (req, res) => {
             );
             const pedido_id = orderResult.insertId;
 
+            // Notificación para el CLIENTE
             await db.query(
                 'INSERT INTO notificaciones (usuario_id, titulo, mensaje) VALUES (?, ?, ?)',
                 [userId, '¡Pago Confirmado! 🎉', `Hemos recibido tu pago por $${paymentData.transaction_amount}. Tu pedido está en proceso.`]
@@ -54,12 +55,10 @@ const receiveWebhook = async (req, res) => {
 
                 let fecha_agendada = null;
                 if (idRaw.includes('-')) {
-                    let fechaSucia = idRaw.substring(idRaw.indexOf('-') + 1); // Ej: "2026-04-30-14:00"
-                    
-                    // 🚀 SOLUCIÓN: Separamos la fecha de la hora y le ponemos el formato exacto de MySQL
-                    const soloFecha = fechaSucia.substring(0, 10); // "2026-04-30"
-                    const soloHora = fechaSucia.substring(11, 16); // "14:00"
-                    fecha_agendada = `${soloFecha} ${soloHora}:00`; // Se convierte en: "2026-04-30 14:00:00"
+                    let fechaSucia = idRaw.substring(idRaw.indexOf('-') + 1); 
+                    const soloFecha = fechaSucia.substring(0, 10); 
+                    const soloHora = fechaSucia.substring(11, 16); 
+                    fecha_agendada = `${soloFecha} ${soloHora}:00`; 
                 }
 
                 const producto_id = esProducto ? idLimpio : null;
@@ -69,10 +68,11 @@ const receiveWebhook = async (req, res) => {
                 const price = Number(item.p || item.unit_price || 0);
                 const comision = price * 0.10;
 
+                // 1. Guardamos el detalle del pedido
                 await db.query(
                     `INSERT INTO detalles_pedido 
                     (pedido_id, producto_id, servicio_id, cantidad, fecha_agendada, precio_unitario_historico, comision_historica, estado_operativo) 
-                    VALUES (?, ?, ?, ?, ?, ?, ?, 'pendiente')`, // 🚀 ¡AQUÍ ESTÁ EL FIX! Ahora nacen en 'pendiente'
+                    VALUES (?, ?, ?, ?, ?, ?, ?, 'pendiente')`,
                     [
                         pedido_id, 
                         producto_id, 
@@ -83,6 +83,42 @@ const receiveWebhook = async (req, res) => {
                         comision
                     ]
                 );
+
+                // 🚀 AQUÍ ESTÁ EL FIX: LÓGICA PARA NOTIFICAR AL PROVEEDOR
+                try {
+                    let proveedor_id = null;
+                    let titulo_item = "";
+
+                    // Buscamos quién es el dueño del producto
+                    if (esProducto && producto_id) {
+                        const [prodRows] = await db.query('SELECT proveedor_id, titulo FROM productos WHERE id = ?', [producto_id]);
+                        if (prodRows.length > 0) {
+                            // Usamos fallback por si en tu DB se llama usuario_id
+                            proveedor_id = prodRows[0].proveedor_id || prodRows[0].usuario_id; 
+                            titulo_item = prodRows[0].titulo;
+                        }
+                    } 
+                    // O buscamos quién es el dueño del servicio
+                    else if (esServicio && servicio_id) {
+                        const [servRows] = await db.query('SELECT proveedor_id, titulo FROM servicios WHERE id = ?', [servicio_id]);
+                        if (servRows.length > 0) {
+                            proveedor_id = servRows[0].proveedor_id || servRows[0].usuario_id;
+                            titulo_item = servRows[0].titulo;
+                        }
+                    }
+
+                    // Si encontramos al dueño, le disparamos su notificación
+                    if (proveedor_id) {
+                        await db.query(
+                            'INSERT INTO notificaciones (usuario_id, titulo, mensaje) VALUES (?, ?, ?)',
+                            [proveedor_id, '¡Nueva Venta! 💰', `¡Felicidades! Acabas de vender ${qty} unidad(es) de "${titulo_item}". Revisa tu panel para preparar el pedido.`]
+                        );
+                        console.log(`✅ Notificación enviada al proveedor ${proveedor_id} por su venta.`);
+                    }
+                } catch (errorNotif) {
+                    // Si falla la notificación, no queremos que truene todo el webhook
+                    console.error("⚠️ Error aislando la notificación al proveedor:", errorNotif.message);
+                }
             }
         }
         res.status(200).send("OK");
