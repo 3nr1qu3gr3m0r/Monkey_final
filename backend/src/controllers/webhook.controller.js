@@ -71,21 +71,21 @@ const receiveWebhook = async (req, res) => {
                 const price = Number(item.p || item.unit_price || 0);
                 const comision = price * 0.10;
 
-                // 1. Guardamos el detalle del pedido (usando la columna 'estado')
-                await db.query(
-                    `INSERT INTO detalles_pedido 
-                    (pedido_id, producto_id, servicio_id, cantidad, fecha_agendada, precio_unitario_historico, comision_historica, estado) 
-                    VALUES (?, ?, ?, ?, ?, ?, ?, 'pendiente')`,
-                    [
-                        pedido_id, 
-                        producto_id, 
-                        servicio_id, 
-                        qty, 
-                        fecha_agendada, 
-                        price, 
-                        comision
-                    ]
-                );
+                // 1. Guardamos el detalle del pedido
+await db.query(
+    `INSERT INTO detalles_pedido 
+    (pedido_id, producto_id, servicio_id, cantidad, fecha_agendada, precio_unitario_historico, comision_historica, estado_operativo) 
+    VALUES (?, ?, ?, ?, ?, ?, ?, 'pendiente')`,
+    [
+        pedido_id, 
+        producto_id, 
+        servicio_id, 
+        qty, 
+        fecha_agendada, 
+        price, 
+        comision
+    ]
+);
 
                 // 2. 📢 LÓGICA PARA NOTIFICAR AL PROVEEDOR
                 try {
