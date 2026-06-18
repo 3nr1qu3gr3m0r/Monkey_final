@@ -149,33 +149,32 @@ def clasificar_intencion_con_gemini(
     ]) if historial else "Sin historial previo."
 
     prompt = f"""
-Eres un clasificador de intenciones para un marketplace de eventos en México.
+Eres un clasificador de intenciones experto para MonkeyMarket, un marketplace de eventos en México.
 Tu ÚNICA tarea es analizar el mensaje y devolver un JSON estructurado.
 
 CATÁLOGO DE CATEGORÍAS DISPONIBLES:
 {catalogo_texto}
 
-HISTORIAL RECIENTE DE LA CONVERSACIÓN:
+HISTORIAL RECIENTE:
 {historial_str}
 
 MENSAJE ACTUAL DEL USUARIO:
 "{mensaje}"
 
 INSTRUCCIONES:
-1. Corrige mentalmente los errores ortográficos.
-2. Identifica qué categorías del catálogo necesita el usuario.
-3. Detecta si hay una temática específica (super heroes, 15 años, boda, etc).
-4. Genera una "query_optimizada" de máximo 20 palabras.
-5. EXTREMADAMENTE IMPORTANTE: "tiene_suficiente_contexto" DEBE SER FALSE si el usuario solo menciona el evento pero NO dice qué busca rentar/comprar. 
-   - Ejemplo 1: "quiero hacer una fiesta de 15 años" -> FALSE (Falta saber si busca salón, vestido, comida).
-   - Ejemplo 2: "busco salón para mis 15 años" -> TRUE (Ya dijo que busca un salón).
-   - Ejemplo 3: "hola" -> FALSE.
+1. Identifica qué categorías del catálogo necesita el usuario.
+2. Detecta la temática específica (boda, xv años, infantil, etc).
+3. EXTREMADAMENTE IMPORTANTE para "query_optimizada": Escribe una frase de búsqueda ideal. 
+   - Si detectas que es un evento formal o para adultos (bodas, graduaciones, consumo de alcohol), INYECTA OBLIGATORIAMENTE palabras como: "elegante, para adultos, formal, nocturno, premium".
+   - Si es infantil, inyecta: "divertido, para niños, familiar, colores".
+   - Esto alejará a la base de datos de recomendar payasos en una boda o alcohol en un bautizo.
+4. "tiene_suficiente_contexto" es FALSE si el usuario solo dice el evento (ej. "quiero una boda") pero NO dice qué servicios/productos busca.
 
 RESPONDE ÚNICAMENTE CON ESTE JSON:
 {{
   "categorias_detectadas": ["nombre exacto de categoría 1"],
   "tematica": "nombre de la temática o null",
-  "query_optimizada": "query limpia para búsqueda semántica",
+  "query_optimizada": "query con palabras de atmósfera (max 20 palabras)",
   "tiene_suficiente_contexto": true
 }}
 """
@@ -335,28 +334,29 @@ async def analyze_message(request: AnalyzeRequest):
         cats_str = ", ".join(categorias_req) if categorias_req else "búsqueda abierta"
 
         prompt_redactor = f"""
-Eres un asistente mexicano de eventos para MonkeyMarket.
-Responde siempre en español de México, con tono amigable, cálido y seguro.
+Eres un vendedor estrella mexicano de eventos para MonkeyMarket.
+Responde siempre en español de México, con tono cálido, seguro y servicial.
 
-CONTEXTO DE LA BÚSQUEDA:
-- {tematica_str}
+CONTEXTO DE LA BÚSQUEDA DEL CLIENTE:
+- Temática detectada: {tematica_str}
 - Categorías encontradas: {cats_str}
 
-CATÁLOGO DISPONIBLE PARA EL CLIENTE:
+CATÁLOGO DISPONIBLE (Lo que se mostrará en pantalla al cliente):
 {context_str}
 
 HISTORIAL DE LA CONVERSACIÓN:
 {history_str}
 
-MENSAJE DEL USUARIO:
-{request.message}
+MENSAJE ACTUAL DEL USUARIO:
+"{request.message}"
 
 REGLAS INFALIBLES:
-1. NUNCA menciones nombres exactos de productos, IDs ni precios en tu mensaje.
-2. Si hay temática, dile que tienes un paquete que incluye tanto **servicios como productos/recuerdos** que harán juego perfecto con su temática.
-3. Sé ASERTIVO: usa frases como "¡Aquí te va el paquete!" en vez de "¿Te muestro opciones?"
-4. Responde ÚNICAMENTE con este JSON (sin backticks, sin markdown):
-   {{"action": "RECOMMENDATION", "content": "tu mensaje amigable aquí"}}
+1. NUNCA menciones nombres exactos de productos, IDs ni precios en tu texto (el cliente ya los verá en las tarjetas).
+2. Sé ASERTIVO: usa frases como "¡Qué gran evento! Aquí te armé un paquete perfecto..."
+3. EL TOQUE DE ORO: Revisa el mensaje actual del usuario. Si pidió algo (ej. fotografía) y NO ESTÁ en el catálogo disponible, discúlpate elegantemente por eso al final del mensaje. (Ej: "Por cierto, por ahora no tengo opciones de fotografía disponibles, ¡pero este paquete de comida está espectacular!").
+4. Si ves un producto en el catálogo que desentona totalmente (ej. un show infantil en una boda), ignóralo en tu texto, enfócate en vender lo que sí encaja con la temática.
+5. Responde ÚNICAMENTE con este JSON (sin backticks, sin markdown):
+   {{"action": "RECOMMENDATION", "content": "tu mensaje amigable y honesto aquí"}}
 """
 
         try:
