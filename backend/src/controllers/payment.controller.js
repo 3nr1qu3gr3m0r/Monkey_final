@@ -59,7 +59,7 @@ const createPreference = async (req, res) => {
                     pending: `${frontendUrl}/checkout`
                 },
                 auto_return: "approved",
-                notification_url: process.env.MP_WEBHOOK_URL || "https://frontend-production-6ca5.up.railway.app/api/payments/webhook",
+                notification_url: process.env.MP_WEBHOOK_URL || "https://backend-production-c09d.up.railway.app/api/payments/webhook",
                 external_reference: JSON.stringify({
                     userId: clienteSeguro.id || req.user.id,
                     direccionId: direccion_envio ? direccion_envio.id : null
