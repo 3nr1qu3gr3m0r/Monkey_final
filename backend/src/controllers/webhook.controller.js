@@ -26,8 +26,9 @@ const receiveWebhook = async (req, res) => {
                 }
             }
 
+            // 🚀 FIX 1: Cambiamos 'cliente_id' por 'usuario_id' para que coincida con tu BD
             const [orderResult] = await db.query(
-                `INSERT INTO pedidos (cliente_id, monto_total, direccion_envio, estado, external_payment_id) 
+                `INSERT INTO pedidos (usuario_id, monto_total, direccion_envio, estado, external_payment_id) 
                  VALUES (?, ?, ?, 'completado', ?)`,
                 [userId, paymentData.transaction_amount, direccionFinal, paymentId.toString()]
             );
@@ -39,7 +40,6 @@ const receiveWebhook = async (req, res) => {
                 [userId, '¡Pago Confirmado! 🎉', `Hemos recibido tu pago por $${paymentData.transaction_amount}. Tu pedido está en proceso.`]
             );
 
-            // 🚀 LEEMOS EL METADATA BLINDADO
             const items = paymentData.metadata?.cart_items || paymentData.additional_info?.items || [];
             console.log("🛒 PROCESANDO ITEMS DEL WEBHOOK:", items.length);
 
@@ -68,10 +68,10 @@ const receiveWebhook = async (req, res) => {
                 const price = Number(item.p || item.unit_price || 0);
                 const comision = price * 0.10;
 
-                // 1. Guardamos el detalle del pedido
+                // 🚀 FIX 2: Cambiamos 'estado_operativo' por 'estado'
                 await db.query(
                     `INSERT INTO detalles_pedido 
-                    (pedido_id, producto_id, servicio_id, cantidad, fecha_agendada, precio_unitario_historico, comision_historica, estado_operativo) 
+                    (pedido_id, producto_id, servicio_id, cantidad, fecha_agendada, precio_unitario_historico, comision_historica, estado) 
                     VALUES (?, ?, ?, ?, ?, ?, ?, 'pendiente')`,
                     [
                         pedido_id, 
@@ -84,22 +84,18 @@ const receiveWebhook = async (req, res) => {
                     ]
                 );
 
-                // 🚀 AQUÍ ESTÁ EL FIX: LÓGICA PARA NOTIFICAR AL PROVEEDOR
+                // LÓGICA PARA NOTIFICAR AL PROVEEDOR
                 try {
                     let proveedor_id = null;
                     let titulo_item = "";
 
-                    // Buscamos quién es el dueño del producto
                     if (esProducto && producto_id) {
                         const [prodRows] = await db.query('SELECT proveedor_id, titulo FROM productos WHERE id = ?', [producto_id]);
                         if (prodRows.length > 0) {
-                            // Usamos fallback por si en tu DB se llama usuario_id
                             proveedor_id = prodRows[0].proveedor_id || prodRows[0].usuario_id; 
                             titulo_item = prodRows[0].titulo;
                         }
-                    } 
-                    // O buscamos quién es el dueño del servicio
-                    else if (esServicio && servicio_id) {
+                    } else if (esServicio && servicio_id) {
                         const [servRows] = await db.query('SELECT proveedor_id, titulo FROM servicios WHERE id = ?', [servicio_id]);
                         if (servRows.length > 0) {
                             proveedor_id = servRows[0].proveedor_id || servRows[0].usuario_id;
@@ -107,7 +103,6 @@ const receiveWebhook = async (req, res) => {
                         }
                     }
 
-                    // Si encontramos al dueño, le disparamos su notificación
                     if (proveedor_id) {
                         await db.query(
                             'INSERT INTO notificaciones (usuario_id, titulo, mensaje) VALUES (?, ?, ?)',
@@ -116,7 +111,6 @@ const receiveWebhook = async (req, res) => {
                         console.log(`✅ Notificación enviada al proveedor ${proveedor_id} por su venta.`);
                     }
                 } catch (errorNotif) {
-                    // Si falla la notificación, no queremos que truene todo el webhook
                     console.error("⚠️ Error aislando la notificación al proveedor:", errorNotif.message);
                 }
             }
@@ -130,6 +124,7 @@ const receiveWebhook = async (req, res) => {
         if (error.status === 404) {
             return res.status(200).send("OK");
         }
+        // 🚀 Si vuelve a fallar, ESTA línea nos dirá exactamente por qué
         console.error("🔥 Error Webhook:", error);
         res.status(500).send("Error");
     }
