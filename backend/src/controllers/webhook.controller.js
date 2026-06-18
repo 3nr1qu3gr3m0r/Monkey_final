@@ -2,6 +2,7 @@ const { MercadoPagoConfig, Payment } = require('mercadopago');
 const db = require('../config/db');
 
 const receiveWebhook = async (req, res) => {
+    // Obtenemos el ID del pago sin importar de qué versión de webhook de MP venga
     const paymentId = req.query['data.id'] || req.query.id || req.body?.data?.id;
 
     if (!paymentId) return res.status(200).send("OK"); 
@@ -12,6 +13,7 @@ const receiveWebhook = async (req, res) => {
         const paymentData = await payment.get({ id: paymentId });
 
         if (paymentData.status === 'approved') {
+            // Evitamos guardar pedidos duplicados si MP manda el webhook 2 veces
             const [existing] = await db.query('SELECT id FROM pedidos WHERE external_payment_id = ?', [paymentId.toString()]);
             if (existing.length > 0) return res.status(200).send("OK");
 
@@ -26,20 +28,21 @@ const receiveWebhook = async (req, res) => {
                 }
             }
 
-            // 🚀 FIX 1: Cambiamos 'cliente_id' por 'usuario_id' para que coincida con tu BD
+            // 🚀 CORRECCIÓN CLAVE: Usamos 'cliente_id' que es como se llama tu tabla en MySQL
             const [orderResult] = await db.query(
-                `INSERT INTO pedidos (usuario_id, monto_total, direccion_envio, estado, external_payment_id) 
+                `INSERT INTO pedidos (cliente_id, monto_total, direccion_envio, estado, external_payment_id) 
                  VALUES (?, ?, ?, 'completado', ?)`,
                 [userId, paymentData.transaction_amount, direccionFinal, paymentId.toString()]
             );
             const pedido_id = orderResult.insertId;
 
-            // Notificación para el CLIENTE
+            // 📢 Notificación para el CLIENTE
             await db.query(
                 'INSERT INTO notificaciones (usuario_id, titulo, mensaje) VALUES (?, ?, ?)',
                 [userId, '¡Pago Confirmado! 🎉', `Hemos recibido tu pago por $${paymentData.transaction_amount}. Tu pedido está en proceso.`]
             );
 
+            // Extraemos los items blindados del metadata
             const items = paymentData.metadata?.cart_items || paymentData.additional_info?.items || [];
             console.log("🛒 PROCESANDO ITEMS DEL WEBHOOK:", items.length);
 
@@ -68,7 +71,7 @@ const receiveWebhook = async (req, res) => {
                 const price = Number(item.p || item.unit_price || 0);
                 const comision = price * 0.10;
 
-                // 🚀 FIX 2: Cambiamos 'estado_operativo' por 'estado'
+                // 1. Guardamos el detalle del pedido (usando la columna 'estado')
                 await db.query(
                     `INSERT INTO detalles_pedido 
                     (pedido_id, producto_id, servicio_id, cantidad, fecha_agendada, precio_unitario_historico, comision_historica, estado) 
@@ -84,18 +87,21 @@ const receiveWebhook = async (req, res) => {
                     ]
                 );
 
-                // LÓGICA PARA NOTIFICAR AL PROVEEDOR
+                // 2. 📢 LÓGICA PARA NOTIFICAR AL PROVEEDOR
                 try {
                     let proveedor_id = null;
                     let titulo_item = "";
 
+                    // Buscamos al dueño del producto
                     if (esProducto && producto_id) {
                         const [prodRows] = await db.query('SELECT proveedor_id, titulo FROM productos WHERE id = ?', [producto_id]);
                         if (prodRows.length > 0) {
                             proveedor_id = prodRows[0].proveedor_id || prodRows[0].usuario_id; 
                             titulo_item = prodRows[0].titulo;
                         }
-                    } else if (esServicio && servicio_id) {
+                    } 
+                    // O buscamos al dueño del servicio
+                    else if (esServicio && servicio_id) {
                         const [servRows] = await db.query('SELECT proveedor_id, titulo FROM servicios WHERE id = ?', [servicio_id]);
                         if (servRows.length > 0) {
                             proveedor_id = servRows[0].proveedor_id || servRows[0].usuario_id;
@@ -103,6 +109,7 @@ const receiveWebhook = async (req, res) => {
                         }
                     }
 
+                    // Si encontramos al dueño, le mandamos la notificación
                     if (proveedor_id) {
                         await db.query(
                             'INSERT INTO notificaciones (usuario_id, titulo, mensaje) VALUES (?, ?, ?)',
@@ -124,7 +131,6 @@ const receiveWebhook = async (req, res) => {
         if (error.status === 404) {
             return res.status(200).send("OK");
         }
-        // 🚀 Si vuelve a fallar, ESTA línea nos dirá exactamente por qué
         console.error("🔥 Error Webhook:", error);
         res.status(500).send("Error");
     }
