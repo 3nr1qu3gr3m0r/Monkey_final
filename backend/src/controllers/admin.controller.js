@@ -10,15 +10,11 @@ exports.getResumen = async (req, res) => {
     const [[{ total_productos }]]     = await db.query(`SELECT COUNT(*) AS total_productos FROM productos`);
     const [[{ total_pedidos }]]       = await db.query(`SELECT COUNT(*) AS total_pedidos FROM pedidos`);
     
-    // ✅ CORREGIDO: Se usa 'monto_total' de tu script real y se apoda 'ingresos_totales'
     const [[{ ingresos_totales }]]    = await db.query(`SELECT IFNULL(SUM(monto_total), 0) AS ingresos_totales FROM pedidos WHERE estado != 'cancelado'`);
     
-    // ✅ CORREGIDO: Se usa el ENUM real 'escalada_admin' de tu script
     const [[{ disputas_abiertas }]]   = await db.query(`SELECT COUNT(*) AS disputas_abiertas FROM disputas WHERE estado IN ('abierta_con_proveedor','escalada_admin')`);
-    const [[{ productos_pendientes }]]= await db.query(`SELECT COUNT(*) AS productos_pendientes FROM productos WHERE esta_activo = FALSE`); // o tu lógica de aprobación
+    const [[{ productos_pendientes }]]= await db.query(`SELECT COUNT(*) AS productos_pendientes FROM productos WHERE esta_activo = FALSE`);
 
-    // Pedidos de los últimos 7 días (para mini gráfica)
-    // ✅ CORREGIDO: Se usa 'fecha_creacion' y 'monto_total' según tu script de pedidos
     const [pedidos_por_dia] = await db.query(`
       SELECT DATE(fecha_creacion) AS dia, COUNT(*) AS cantidad, SUM(monto_total) AS monto
       FROM pedidos
@@ -47,8 +43,6 @@ exports.getResumen = async (req, res) => {
 // ─────────────────────────────────────────────
 exports.getProductosPendientes = async (req, res) => {
   try {
-    // ✅ CORREGIDO: Se usan columnas reales: p.titulo AS nombre, p.proveedor_id, c.nombre
-    // Se usa un LEFT JOIN con categorias usando la columna de texto de tu script
     const [rows] = await db.query(`
       SELECT p.id, p.titulo AS nombre, p.descripcion, p.precio, p.esta_activo, p.imagenes AS imagen_url,
              u.nombre AS vendedor, u.correo AS vendedor_email, u.id AS vendedor_id,
@@ -67,24 +61,23 @@ exports.getProductosPendientes = async (req, res) => {
 
 exports.moderarProducto = async (req, res) => {
   const { id } = req.params;
-  const { accion } = req.body; // 'aprobado' | 'rechazado'
+  const { accion } = req.body; 
 
   if (!['aprobado', 'rechazado'].includes(accion)) {
     return res.status(400).json({ error: 'Acción inválida. Usa "aprobado" o "rechazado"' });
   }
 
   try {
-    await db.query(`UPDATE productos SET estado = ? WHERE id = ?`, [accion, id]);
+    await db.query(`UPDATE productos SET esta_activo = ? WHERE id = ?`, [accion === 'aprobado' ? true : false, id]);
 
-    // Notificar al vendedor
-    const [[producto]] = await db.query(`SELECT usuario_id, nombre FROM productos WHERE id = ?`, [id]);
+    const [[producto]] = await db.query(`SELECT proveedor_id, titulo FROM productos WHERE id = ?`, [id]);
     const mensaje = accion === 'aprobado'
-      ? `Tu producto "${producto.nombre}" ha sido aprobado y ya está visible.`
-      : `Tu producto "${producto.nombre}" fue rechazado por el administrador.`;
+      ? `Tu producto "${producto.titulo}" ha sido aprobado y ya está visible.`
+      : `Tu producto "${producto.titulo}" fue rechazado por el administrador.`;
 
     await db.query(
       `INSERT INTO notificaciones (usuario_id, titulo, mensaje) VALUES (?, ?, ?)`,
-      [producto.usuario_id, accion === 'aprobado' ? 'Producto aprobado ✅' : 'Producto rechazado ❌', mensaje]
+      [producto.proveedor_id, accion === 'aprobado' ? 'Producto aprobado ✅' : 'Producto rechazado ❌', mensaje]
     );
 
     res.json({ mensaje: `Producto ${accion} correctamente` });
@@ -111,15 +104,15 @@ exports.getTransacciones = async (req, res) => {
     }
 
     const [rows] = await db.query(`
-      SELECT p.id, p.total, p.estado, p.metodo_pago, p.fecha_pedido,
-             u.nombre AS comprador, u.email AS comprador_email,
+      SELECT p.id, p.monto_total AS total, p.estado, p.metodo_pago, p.fecha_creacion AS fecha_pedido,
+             u.nombre AS comprador, u.correo AS comprador_email,
              COUNT(dp.id) AS num_productos
       FROM pedidos p
       JOIN usuarios u ON p.usuario_id = u.id
       LEFT JOIN detalles_pedido dp ON dp.pedido_id = p.id
       ${whereClause}
       GROUP BY p.id
-      ORDER BY p.fecha_pedido DESC
+      ORDER BY p.fecha_creacion DESC
       LIMIT ? OFFSET ?
     `, [...params, parseInt(limite), parseInt(offset)]);
 
@@ -141,12 +134,12 @@ exports.getTransacciones = async (req, res) => {
 exports.getProveedores = async (req, res) => {
   try {
     const [rows] = await db.query(`
-      SELECT u.id, u.nombre, u.email, u.telefono, u.fecha_registro, u.activo,
+      SELECT u.id, u.nombre, u.correo AS email, u.telefono, u.fecha_registro, u.es_activo AS activo,
              COUNT(DISTINCT p.id)  AS total_productos,
              COUNT(DISTINCT pe.id) AS total_pedidos,
-             IFNULL(SUM(pe.total), 0) AS volumen_ventas
+             IFNULL(SUM(pe.monto_total), 0) AS volumen_ventas
       FROM usuarios u
-      LEFT JOIN productos p  ON p.usuario_id = u.id
+      LEFT JOIN productos p  ON p.proveedor_id = u.id
       LEFT JOIN detalles_pedido dp ON dp.producto_id = p.id
       LEFT JOIN pedidos pe ON pe.id = dp.pedido_id AND pe.estado != 'cancelado'
       WHERE u.rol = 'proveedor'
@@ -163,8 +156,8 @@ exports.getProveedores = async (req, res) => {
 exports.toggleActivoProveedor = async (req, res) => {
   const { id } = req.params;
   try {
-    await db.query(`UPDATE usuarios SET activo = NOT activo WHERE id = ? AND rol = 'proveedor'`, [id]);
-    const [[usuario]] = await db.query(`SELECT activo FROM usuarios WHERE id = ?`, [id]);
+    await db.query(`UPDATE usuarios SET es_activo = NOT es_activo WHERE id = ? AND rol = 'proveedor'`, [id]);
+    const [[usuario]] = await db.query(`SELECT es_activo AS activo FROM usuarios WHERE id = ?`, [id]);
     res.json({ activo: usuario.activo });
   } catch (error) {
     console.error('Error en toggleActivoProveedor:', error);
@@ -183,7 +176,7 @@ exports.getCategorias = async (req, res) => {
              COUNT(DISTINCT dp.id) AS total_ventas,
              IFNULL(SUM(dp.precio_unitario * dp.cantidad), 0) AS ingresos
       FROM categorias c
-      LEFT JOIN productos p  ON p.categoria_id = c.id
+      LEFT JOIN productos p  ON p.categoria = c.nombre
       LEFT JOIN detalles_pedido dp ON dp.producto_id = p.id
       GROUP BY c.id
       ORDER BY ingresos DESC
@@ -196,7 +189,7 @@ exports.getCategorias = async (req, res) => {
 };
 
 // ─────────────────────────────────────────────
-//  DISPUTAS  –  gestión de disputas escaladas
+//  DISPUTAS  –  gestión de disputas escaladas (CORREGIDO)
 // ─────────────────────────────────────────────
 exports.getDisputas = async (req, res) => {
   try {
@@ -209,19 +202,20 @@ exports.getDisputas = async (req, res) => {
       params.push(estado);
     }
 
+    // 🚀 AQUI ESTABA EL ERROR: Se borró d.motivo y se ajustaron los alias a la BD
     const [rows] = await db.query(`
-      SELECT d.id, d.estado, d.motivo, d.descripcion, d.fecha_creacion,
+      SELECT d.id, d.estado, d.descripcion, d.fecha_creacion,
              d.resolucion, d.fecha_resolucion,
-             uc.nombre AS cliente,  uc.email AS cliente_email,
-             up.nombre AS proveedor, up.email AS proveedor_email,
-             prod.nombre AS producto,
+             uc.nombre AS cliente,  uc.correo AS cliente_email,
+             up.nombre AS proveedor, up.correo AS proveedor_email,
+             prod.titulo AS producto,
              dp.id AS detalle_pedido_id
       FROM disputas d
       JOIN detalles_pedido dp ON dp.id = d.detalle_pedido_id
       JOIN pedidos pe ON pe.id = dp.pedido_id
       JOIN usuarios uc ON uc.id = pe.usuario_id
       JOIN productos prod ON prod.id = dp.producto_id
-      JOIN usuarios up ON up.id = prod.usuario_id
+      JOIN usuarios up ON up.id = prod.proveedor_id
       ${whereClause}
       ORDER BY d.fecha_creacion DESC
     `, params);
@@ -236,7 +230,6 @@ exports.getDisputas = async (req, res) => {
 exports.resolverDisputa = async (req, res) => {
   const { id } = req.params;
   const { resolucion, favorece } = req.body;
-  // favorece: 'cliente' | 'proveedor'
 
   if (!resolucion || !['cliente', 'proveedor'].includes(favorece)) {
     return res.status(400).json({ error: 'Debes indicar la resolución y a quién favorece (cliente|proveedor)' });
@@ -244,7 +237,7 @@ exports.resolverDisputa = async (req, res) => {
 
   try {
     const [[disputa]] = await db.query(`
-      SELECT d.*, pe.usuario_id AS cliente_id, prod.usuario_id AS proveedor_id, prod.nombre AS producto_nombre
+      SELECT d.*, pe.usuario_id AS cliente_id, prod.proveedor_id AS proveedor_id, prod.titulo AS producto_nombre
       FROM disputas d
       JOIN detalles_pedido dp ON dp.id = d.detalle_pedido_id
       JOIN pedidos pe ON pe.id = dp.pedido_id
@@ -254,17 +247,14 @@ exports.resolverDisputa = async (req, res) => {
 
     if (!disputa) return res.status(404).json({ error: 'Disputa no encontrada' });
 
-    // 1. Cerrar la disputa
     await db.query(`
       UPDATE disputas SET estado = 'resuelta', resolucion = ?, fecha_resolucion = NOW() WHERE id = ?
     `, [resolucion, id]);
 
-    // 2. Actualizar estado operativo del detalle de pedido
     await db.query(`
-      UPDATE detalles_pedido SET estado_operativo = ? WHERE id = ?
-    `, [favorece === 'cliente' ? 'refunded' : 'completed', disputa.detalle_pedido_id]);
+      UPDATE detalles_pedido SET estado = ? WHERE id = ?
+    `, [favorece === 'cliente' ? 'cancelado' : 'entregado', disputa.detalle_pedido_id]);
 
-    // 3. Notificar a ambas partes
     const mensajeCliente = favorece === 'cliente'
       ? `Tu disputa sobre "${disputa.producto_nombre}" fue resuelta a tu favor. Resolución: ${resolucion}`
       : `Tu disputa sobre "${disputa.producto_nombre}" fue resuelta a favor del proveedor. Resolución: ${resolucion}`;
